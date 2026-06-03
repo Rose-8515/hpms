@@ -82,6 +82,32 @@ function closeModalFn(e) {
 window.closeModal = closeModalFn;
 
 // ══════════════════════════════════════
+// UNIT DROPDOWN HELPER
+// ══════════════════════════════════════
+function buildUnitOptions(units, defaultLabel='-- 請選擇 --', showAll=false) {
+  const campuses = [...new Set(units.map(u=>u.campus).filter(Boolean))].sort();
+  let html = showAll ? '<option value="">-- 全部單位 --</option>' : `<option value="">${defaultLabel}</option>`;
+  if (campuses.length > 1) {
+    campuses.forEach(campus => {
+      const group = units.filter(u => u.campus === campus);
+      html += `<optgroup label="${campus}院區">`;
+      group.forEach(u => { html += `<option value="${u.code}">${u.name} (${u.code})</option>`; });
+      html += '</optgroup>';
+    });
+    // Units without campus
+    const noCampus = units.filter(u => !u.campus);
+    if (noCampus.length) {
+      html += '<optgroup label="其他">';
+      noCampus.forEach(u => { html += `<option value="${u.code}">${u.name} (${u.code})</option>`; });
+      html += '</optgroup>';
+    }
+  } else {
+    units.forEach(u => { html += `<option value="${u.code}">${u.name} (${u.code})</option>`; });
+  }
+  return html;
+}
+
+// ══════════════════════════════════════
 // SEED DATA
 // ══════════════════════════════════════
 async function seedIfEmpty() {
@@ -316,8 +342,7 @@ async function renderAudit() {
     <div class="form-row">
       <div class="form-group" style="min-width:220px"><label>醫療單位</label>
         <select id="audit-unit">
-          <option value="">-- 請選擇 --</option>
-          ${units.map(u=>`<option value="${u.code}">${u.name} (${u.code})</option>`).join('')}
+          ${buildUnitOptions(units)}
         </select>
       </div>
       <div class="form-group"><label>查核日期</label>
@@ -605,8 +630,7 @@ async function renderQuery() {
     <div class="form-row">
       <div class="form-group" style="min-width:220px"><label>醫療單位</label>
         <select id="q-unit">
-          <option value="">-- 全部單位 --</option>
-          ${units.map(u=>`<option value="${u.code}">${u.name}</option>`).join('')}
+          ${buildUnitOptions(units, '-- 全部單位 --', true)}
         </select>
       </div>
       <div class="form-group"><label>藥品名稱/庫存碼</label>
@@ -686,8 +710,7 @@ async function renderDrugList() {
     <div class="form-row">
       <div class="form-group" style="min-width:220px"><label>醫療單位</label>
         <select id="dl-unit" onchange="loadDrugList()">
-          <option value="">-- 請選擇 --</option>
-          ${units.map(u=>`<option value="${u.code}">${u.name}</option>`).join('')}
+          ${buildUnitOptions(units)}
         </select>
       </div>
     </div>

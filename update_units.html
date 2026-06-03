@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<title>單位名稱更新工具</title>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, doc, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+const firebaseConfig = {
+  apiKey: "AIzaSyCPaUsSynqNjlyDMjqIBzEP9CndvidX_Rk",
+  authDomain: "hpms-f1847.firebaseapp.com",
+  projectId: "hpms-f1847",
+  storageBucket: "hpms-f1847.firebasestorage.app",
+  messagingSenderId: "94492008703",
+  appId: "1:94492008703:web:e4e4656afa203893b1acca"
+};
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+const UNITS_UPDATE=[{"code":"CSR","name":"供應室","campus":"斗六"},{"code":"DENT","name":"牙科","campus":"斗六"},{"code":"DERM","name":"皮膚科","campus":"斗六"},{"code":"DIA","name":"洗腎室","campus":"斗六"},{"code":"EMER","name":"急診","campus":"斗六"},{"code":"ENT","name":"耳鼻喉科","campus":"斗六"},{"code":"FM","name":"家醫科","campus":"斗六"},{"code":"HMC","name":"健管","campus":"斗六"},{"code":"HSNG","name":"運動心電圖室","campus":"斗六"},{"code":"LAB","name":"檢驗部","campus":"斗六"},{"code":"MAC","name":"醫學美容中心","campus":"斗六"},{"code":"MED1","name":"一般內科門診","campus":"斗六"},{"code":"MOC","name":"腫瘤醫學中心","campus":"斗六"},{"code":"MRR","name":"腹膜透析室","campus":"斗六"},{"code":"NEU","name":"神經檢查室","campus":"斗六"},{"code":"NEU1","name":"神經檢查室","campus":"斗六"},{"code":"NM","name":"核醫科","campus":"斗六"},{"code":"OBGR","name":"婦產科門診","campus":"斗六"},{"code":"OBGY","name":"婦產部(生殖)","campus":"斗六"},{"code":"OPH","name":"眼科","campus":"斗六"},{"code":"OR","name":"開刀房","campus":"斗六"},{"code":"ORTR","name":"骨科","campus":"斗六"},{"code":"PAT","name":"病理部","campus":"斗六"},{"code":"PC","name":"麻醉部","campus":"斗六"},{"code":"PEDR","name":"小兒部","campus":"斗六"},{"code":"PMR","name":"復健部","campus":"斗六"},{"code":"PMRA","name":"復健科","campus":"斗六"},{"code":"RAD","name":"影醫部","campus":"斗六"},{"code":"SUR","name":"外科","campus":"斗六"},{"code":"UROR","name":"泌尿科","campus":"斗六"},{"code":"Y002","name":"2W","campus":"斗六"},{"code":"Y008","name":"8W","campus":"斗六"},{"code":"Y009","name":"9W","campus":"斗六"},{"code":"Y010","name":"10W","campus":"斗六"},{"code":"Y011","name":"11W","campus":"斗六"},{"code":"Y03A","name":"3A","campus":"斗六"},{"code":"Y03B","name":"3B","campus":"斗六"},{"code":"Y05A","name":"5A","campus":"斗六"},{"code":"Y05B","name":"5B","campus":"斗六"},{"code":"Y06A","name":"6A","campus":"斗六"},{"code":"Y06B","name":"6B","campus":"斗六"},{"code":"Y07A","name":"7A","campus":"斗六"},{"code":"Y07B","name":"7B","campus":"斗六"},{"code":"Y0CR","name":"心導管室","campus":"斗六"},{"code":"Y0ES","name":"內視鏡室","campus":"斗六"},{"code":"Y0NH","name":"護理之家","campus":"斗六"},{"code":"Y0PB","name":"嬰兒室","campus":"斗六"},{"code":"YI2A","name":"2AICU","campus":"斗六"},{"code":"YI2B","name":"2BICU","campus":"斗六"},{"code":"YLDH","name":"12W","campus":"斗六"},{"code":"YRCC","name":"RCC","campus":"斗六"},{"code":"YT7B","name":"7B負壓隔離病房","campus":"斗六"},{"code":"Z030","name":"居家護理","campus":"斗六"},{"code":"HBMT","name":"骨髓移植中心","campus":"虎尾"},{"code":"HCSR","name":"供應室","campus":"虎尾"},{"code":"HDEN","name":"牙科","campus":"虎尾"},{"code":"HDER","name":"皮膚","campus":"虎尾"},{"code":"HDIA","name":"洗腎室","campus":"虎尾"},{"code":"HEME","name":"急診","campus":"虎尾"},{"code":"HENT","name":"耳鼻喉","campus":"虎尾"},{"code":"HLAB","name":"檢驗醫學部","campus":"虎尾"},{"code":"HLAR","name":"檢驗醫學部","campus":"虎尾"},{"code":"HMAC","name":"整型美容中心","campus":"虎尾"},{"code":"HMED","name":"一般內科","campus":"虎尾"},{"code":"HMOC","name":"腫瘤醫學中心","campus":"虎尾"},{"code":"HNE1","name":"神經檢查室","campus":"虎尾"},{"code":"HNEU","name":"神經內科","campus":"虎尾"},{"code":"HOBG","name":"婦產科","campus":"虎尾"},{"code":"HOPH","name":"眼科","campus":"虎尾"},{"code":"HOR","name":"開刀房","campus":"虎尾"},{"code":"HORT","name":"骨科門診","campus":"虎尾"},{"code":"HPC","name":"麻醉部","campus":"虎尾"},{"code":"HPED","name":"小兒科門診","campus":"虎尾"},{"code":"HPMC","name":"精準醫學中心","campus":"虎尾"},{"code":"HPMO","name":"復健科門診","campus":"虎尾"},{"code":"HPMR","name":"復健部","campus":"虎尾"},{"code":"HRAD","name":"影醫部","campus":"虎尾"},{"code":"HRT1","name":"放射腫瘤科","campus":"虎尾"},{"code":"HRT2","name":"腫瘤內科","campus":"虎尾"},{"code":"HSUR","name":"外科","campus":"虎尾"},{"code":"HUR","name":"尿動室","campus":"虎尾"},{"code":"HURO","name":"泌尿科","campus":"虎尾"},{"code":"HZ03","name":"居家護理","campus":"虎尾"},{"code":"YH5N","name":"5N","campus":"虎尾"},{"code":"YH5S","name":"5S","campus":"虎尾"},{"code":"YH6N","name":"6N","campus":"虎尾"},{"code":"YH6S","name":"6S","campus":"虎尾"},{"code":"YH7N","name":"7N","campus":"虎尾"},{"code":"YHBS","name":"碎石室","campus":"虎尾"},{"code":"YHCR","name":"化療室","campus":"虎尾"},{"code":"YHES","name":"內視鏡室","campus":"虎尾"},{"code":"YI3N","name":"3N","campus":"虎尾"}];
+
+function log(msg, color='#a8d8a8') {
+  const el = document.getElementById('log');
+  el.innerHTML += `<div style="color:${color}">${msg}</div>`;
+  el.scrollTop = el.scrollHeight;
+}
+function setProgress(pct, label) {
+  document.getElementById('prog').style.width = pct + '%';
+  document.getElementById('prog-label').textContent = label;
+}
+
+async function runUpdate() {
+  document.getElementById('btn').disabled = true;
+  document.getElementById('btn').textContent = '更新中...';
+  try {
+    log('▶ 更新 ' + UNITS_UPDATE.length + ' 個醫療單位名稱及院區...', '#f5c75a');
+    for (let i = 0; i < UNITS_UPDATE.length; i += 400) {
+      const batch = writeBatch(db);
+      UNITS_UPDATE.slice(i, i+400).forEach(u => {
+        batch.set(doc(db, 'units', u.code), u);
+      });
+      await batch.commit();
+      const done = Math.min(i+400, UNITS_UPDATE.length);
+      setProgress(done/UNITS_UPDATE.length*100, done + '/' + UNITS_UPDATE.length);
+      log('  ' + done + '/' + UNITS_UPDATE.length + ' 完成', '#a8d8a8');
+    }
+    setProgress(100, '更新完成！');
+    log('', '');
+    log('🎉 全部更新成功！', '#f5c75a');
+    log('請回到主系統確認單位名稱是否正確。', '#a8d8a8');
+    document.getElementById('btn').textContent = '✅ 更新完成';
+  } catch(e) {
+    log('❌ 錯誤：' + e.message, '#f5a0a0');
+    document.getElementById('btn').disabled = false;
+    document.getElementById('btn').textContent = '重新嘗試';
+  }
+}
+window.runUpdate = runUpdate;
+</script>
+<style>
+body{font-family:'Microsoft JhengHei',sans-serif;background:#0d1b2a;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;}
+.box{background:#1a2d42;border-radius:16px;padding:36px 40px;width:500px;box-shadow:0 8px 32px rgba(0,0,0,0.4);}
+h2{color:#f5c75a;margin-bottom:4px;font-size:20px;}
+p{color:#7a9ab5;font-size:13px;margin-bottom:20px;}
+.stat{background:#0d1b2a;border-radius:8px;padding:14px;text-align:center;border:1px solid #2d4a66;margin-bottom:20px;}
+.stat .n{font-size:32px;font-weight:800;color:#f5c75a;}
+.stat .l{font-size:12px;color:#5a7085;margin-top:2px;}
+.prog-wrap{background:#0d1b2a;border-radius:8px;height:14px;margin-bottom:6px;overflow:hidden;border:1px solid #2d4a66;}
+#prog{height:100%;background:linear-gradient(90deg,#1a4f7a,#f5c75a);width:0%;transition:width 0.4s;border-radius:8px;}
+#prog-label{font-size:12px;color:#5a7085;margin-bottom:14px;}
+#log{background:#060d14;border-radius:8px;padding:14px;font-size:12px;font-family:monospace;height:160px;overflow-y:auto;margin-bottom:16px;border:1px solid #2d4a66;}
+button{background:linear-gradient(135deg,#1a4f7a,#2d7ab5);color:#fff;border:none;border-radius:8px;padding:13px 28px;font-size:15px;font-weight:700;cursor:pointer;width:100%;letter-spacing:1px;}
+button:hover{background:linear-gradient(135deg,#2d7ab5,#1a4f7a);}
+button:disabled{background:#2d4a66;cursor:not-allowed;color:#5a7085;}
+</style>
+</head>
+<body>
+<div class="box">
+  <h2>🏥 醫療單位名稱更新工具</h2>
+  <p>將 92 個醫療單位的中文名稱及院區批量更新至 Firebase</p>
+  <div class="stat">
+    <div class="n">92</div>
+    <div class="l">醫療單位（含斗六、虎尾兩院區）</div>
+  </div>
+  <div class="prog-wrap"><div id="prog"></div></div>
+  <div id="prog-label">準備就緒</div>
+  <div id="log">等待更新...</div>
+  <button id="btn" onclick="runUpdate()">🚀 開始更新</button>
+</div>
+</body>
+</html>
