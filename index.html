@@ -82,30 +82,32 @@ function closeModalFn(e) {
 window.closeModal = closeModalFn;
 
 // ══════════════════════════════════════
-// UNIT DROPDOWN HELPER
+// UNIT DROPDOWN HELPER (兩層：院區 → 單位)
 // ══════════════════════════════════════
-function buildUnitOptions(units, defaultLabel='-- 請選擇 --', showAll=false) {
-  const campuses = [...new Set(units.map(u=>u.campus).filter(Boolean))].sort();
-  let html = showAll ? '<option value="">-- 全部單位 --</option>' : `<option value="">${defaultLabel}</option>`;
-  if (campuses.length > 1) {
-    campuses.forEach(campus => {
-      const group = units.filter(u => u.campus === campus);
-      html += `<optgroup label="${campus}院區">`;
-      group.forEach(u => { html += `<option value="${u.code}">${u.name} (${u.code})</option>`; });
-      html += '</optgroup>';
-    });
-    // Units without campus
-    const noCampus = units.filter(u => !u.campus);
-    if (noCampus.length) {
-      html += '<optgroup label="其他">';
-      noCampus.forEach(u => { html += `<option value="${u.code}">${u.name} (${u.code})</option>`; });
-      html += '</optgroup>';
-    }
-  } else {
-    units.forEach(u => { html += `<option value="${u.code}">${u.name} (${u.code})</option>`; });
-  }
-  return html;
+// allUnits: 全部單位資料 (需在呼叫前已載入)
+// campusSelId: 院區 select 的 id
+// unitSelId:   單位 select 的 id
+// onUnitChange: 選完單位後的 callback (可選)
+function buildCampusUnitSelects(allUnits, campusSelId, unitSelId, onUnitChange='') {
+  const campuses = [...new Set(allUnits.map(u=>u.campus).filter(Boolean))].sort();
+  const campusOpts = `<option value="">-- 請選擇院區 --</option>` +
+    campuses.map(c=>`<option value="${c}">${c}院區</option>`).join('') +
+    (allUnits.some(u=>!u.campus) ? '<option value="__other__">其他</option>' : '');
+  return { campusOpts, campuses, allUnits };
 }
+
+function onCampusChange(campusSelId, unitSelId, allUnits, extraOnChange='') {
+  const campus = document.getElementById(campusSelId).value;
+  const unitSel = document.getElementById(unitSelId);
+  const filtered = campus === '__other__'
+    ? allUnits.filter(u=>!u.campus)
+    : campus ? allUnits.filter(u=>u.campus===campus) : [];
+  filtered.sort((a,b)=>a.name.localeCompare(b.name,'zh-TW'));
+  unitSel.innerHTML = '<option value="">-- 請選擇單位 --</option>' +
+    filtered.map(u=>`<option value="${u.code}">${u.name} (${u.code})</option>`).join('');
+  if(extraOnChange) eval(extraOnChange);
+}
+window.onCampusChange = onCampusChange;
 
 // ══════════════════════════════════════
 // SEED DATA
@@ -335,14 +337,22 @@ async function renderAudit() {
   const units = await fsGetAll('units');
   units.sort((a,b) => a.code.localeCompare(b.code));
   hideLoading();
+  window._auditUnits = units;
+  const campuses=[...new Set(units.map(u=>u.campus).filter(Boolean))].sort();
   renderMain(`
   <div class="page-header"><h2>✅ 藥品查核</h2><p>點選醫療單位後進行所有品項查核</p></div>
   <div class="card">
     <div class="card-title">選擇查核單位</div>
     <div class="form-row">
-      <div class="form-group" style="min-width:220px"><label>醫療單位</label>
+      <div class="form-group" style="min-width:160px"><label>院區</label>
+        <select id="audit-campus" onchange="onCampusChange('audit-campus','audit-unit',window._auditUnits)">
+          <option value="">-- 請選擇院區 --</option>
+          ${campuses.map(c=>`<option value="${c}">${c}院區</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group" style="min-width:200px"><label>醫療單位</label>
         <select id="audit-unit">
-          ${buildUnitOptions(units)}
+          <option value="">-- 請先選院區 --</option>
         </select>
       </div>
       <div class="form-group"><label>查核日期</label>
@@ -623,14 +633,23 @@ async function renderQuery() {
   const units = await fsGetAll('units');
   units.sort((a,b)=>a.code.localeCompare(b.code));
   hideLoading();
+  window._queryUnits = units;
+  const qCampuses=[...new Set(units.map(u=>u.campus).filter(Boolean))].sort();
   renderMain(`
   <div class="page-header"><h2>🔍 藥品查詢</h2><p>依醫療單位查詢不計價常備藥品清單</p></div>
   <div class="card">
     <div class="card-title">查詢條件</div>
     <div class="form-row">
-      <div class="form-group" style="min-width:220px"><label>醫療單位</label>
+      <div class="form-group" style="min-width:140px"><label>院區</label>
+        <select id="q-campus" onchange="onCampusChange('q-campus','q-unit',window._queryUnits,''); document.getElementById('q-unit').insertAdjacentHTML('afterbegin','<option value=\"\" selected>-- 全部單位 --</option>')">
+          <option value="">-- 全部院區 --</option>
+          ${qCampuses.map(c=>`<option value="${c}">${c}院區</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group" style="min-width:200px"><label>醫療單位</label>
         <select id="q-unit">
-          ${buildUnitOptions(units, '-- 全部單位 --', true)}
+          <option value="">-- 全部單位 --</option>
+          ${units.map(u=>`<option value="${u.code}">${u.name} (${u.code})</option>`).join('')}
         </select>
       </div>
       <div class="form-group"><label>藥品名稱/庫存碼</label>
@@ -703,14 +722,22 @@ async function renderDrugList() {
   const units = await fsGetAll('units');
   units.sort((a,b)=>a.code.localeCompare(b.code));
   hideLoading();
+  window._dlUnits = units;
+  const dlCampuses=[...new Set(units.map(u=>u.campus).filter(Boolean))].sort();
   renderMain(`
   <div class="page-header"><h2>📝 不計價清單設定</h2><p>設定各醫療單位的不計價常備藥品及常備量</p></div>
   <div class="card">
     <div class="card-title">選擇單位</div>
     <div class="form-row">
-      <div class="form-group" style="min-width:220px"><label>醫療單位</label>
+      <div class="form-group" style="min-width:160px"><label>院區</label>
+        <select id="dl-campus" onchange="onCampusChange('dl-campus','dl-unit',window._dlUnits,'loadDrugList()')">
+          <option value="">-- 請選擇院區 --</option>
+          ${dlCampuses.map(c=>`<option value="${c}">${c}院區</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group" style="min-width:200px"><label>醫療單位</label>
         <select id="dl-unit" onchange="loadDrugList()">
-          ${buildUnitOptions(units)}
+          <option value="">-- 請先選院區 --</option>
         </select>
       </div>
     </div>
