@@ -279,53 +279,137 @@ window.navigate = navigate;
 // ══════════════════════════════════════
 // DASHBOARD
 // ══════════════════════════════════════
+let _dbData = null; // cache
+let _dbMonth = null; // current viewing month
+
 async function renderDashboard() {
+  const now = new Date();
+  if (!_dbMonth) _dbMonth = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
   renderMain('<div style="padding:40px;text-align:center"><div class="spinner" style="margin:0 auto"></div></div>');
   try {
-    const [units, drugs, audits, ud] = await Promise.all([
-      fsGetAll('units'),
-      fsGetAll('drugs'),
-      fsGetAll('audits'),
-      fsGetAll('unit_drugs'),
-    ]);
-    units.sort((a,b) => a.code.localeCompare(b.code));
-    const cm = {}; ud.forEach(r => { cm[r.unitCode] = (cm[r.unitCode]||0)+1; });
-    const mon = new Date().toISOString().slice(0,7);
-    const ma = audits.filter(a => a.auditDate?.startsWith(mon));
-    const recent = audits.sort((a,b) => (b.createdAt||0)-(a.createdAt||0)).slice(0,10);
-    renderMain(`
-    <div class="page-header"><h2>📊 儀表板</h2><p>歡迎回來，${CU.name}</p></div>
-    <div class="stat-grid">
-      <div class="stat-card"><div class="val">${units.length}</div><div class="lbl">醫療單位</div></div>
-      <div class="stat-card green"><div class="val">${drugs.length}</div><div class="lbl">藥品品項</div></div>
-      <div class="stat-card"><div class="val">${ma.length}</div><div class="lbl">本月查核次數</div></div>
-      <div class="stat-card orange"><div class="val">${Object.keys(cm).length}</div><div class="lbl">已設定清單單位</div></div>
-    </div>
-    <div class="card">
-      <div class="card-title">📋 各單位不計價品項數</div>
-      <div class="tbl-wrap"><table>
-        <tr><th>單位代碼</th><th>單位名稱</th><th>院區</th><th>品項數</th><th>操作</th></tr>
-        ${units.map(u=>`<tr>
-          <td><span class="badge-blue">${u.code}</span></td><td>${u.name}</td><td>${u.campus}</td>
-          <td>${cm[u.code]||0} 項</td>
-          <td><button class="btn btn-primary btn-sm" onclick="navigate('audit')">查核</button>
-              <button class="btn btn-ghost btn-sm" style="margin-left:4px" onclick="navigate('query')">查詢</button></td>
-        </tr>`).join('')}
-      </table></div>
-    </div>
-    <div class="card">
-      <div class="card-title">📅 最近查核記錄</div>
-      ${recent.length===0?'<p class="text-sm">尚無查核記錄</p>':`
-      <div class="tbl-wrap"><table>
-        <tr><th>日期</th><th>單位</th><th>查核藥師</th><th>狀態</th></tr>
-        ${recent.map(a=>`<tr>
-          <td>${a.auditDate||''}</td><td>${a.unitName||''}</td><td>${a.pharmacist||''}</td>
-          <td><span class="badge-${a.complete?'green':'orange'}">${a.complete?'完成':'進行中'}</span></td>
-        </tr>`).join('')}
-      </table></div>`}
-    </div>`);
+    if (!_dbData) {
+      const [units, drugs, audits, ud] = await Promise.all([
+        fsGetAll('units'), fsGetAll('drugs'), fsGetAll('audits'), fsGetAll('unit_drugs'),
+      ]);
+      units.sort((a,b) => a.campus.localeCompare(b.campus) || a.name.localeCompare(b.name,'zh-TW'));
+      _dbData = { units, drugs, audits, ud };
+    }
+    renderDashboardUI();
   } catch(e) { renderMain(`<div class="alert alert-warn">載入失敗：${e.message}</div>`); }
 }
+
+function renderDashboardUI() {
+  const { units, drugs, audits, ud } = _dbData;
+  const cm = {}; ud.forEach(r => { cm[r.unitCode] = (cm[r.unitCode]||0)+1; });
+
+  // Month navigation
+  const [y, m] = _dbMonth.split('-').map(Number);
+  const prevMonth = m===1 ? `${y-1}-12` : `${y}-${String(m-1).padStart(2,'0')}`;
+  const nextMonth = m===12 ? `${y+1}-01` : `${y}-${String(m+1).padStart(2,'0')}`;
+  const monthLabel = `${y}年${m}月`;
+  const now = new Date();
+  const isCurrentMonth = _dbMonth === now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
+
+  // Units with drug list
+  const activeUnits = units.filter(u => cm[u.code] > 0);
+  const totalUnits = activeUnits.length;
+
+  // Audits in selected month
+  const monthAudits = audits.filter(a => a.auditDate?.startsWith(_dbMonth));
+  // Dedupe by unit (latest per unit per month)
+  const auditedUnits = new Set(monthAudits.map(a => a.unitCode));
+  const completedCount = auditedUnits.size;
+  const pct = totalUnits > 0 ? Math.round(completedCount/totalUnits*100) : 0;
+
+  // Recent 3 months for summary cards
+  const months = [];
+  for (let i = 2; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth()-i, 1);
+    const key = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+    const label = `${d.getFullYear()}年${d.getMonth()+1}月`;
+    const mAudits = audits.filter(a => a.auditDate?.startsWith(key));
+    const mDone = new Set(mAudits.map(a=>a.unitCode)).size;
+    months.push({ key, label, done: mDone, total: totalUnits, isCurrent: key===_dbMonth });
+  }
+
+  // Unit completion detail for selected month
+  const campuses = [...new Set(activeUnits.map(u=>u.campus).filter(Boolean))].sort();
+
+  renderMain(`
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+    <div><h2 style="font-size:22px;font-weight:700;color:var(--primary-dark)">📊 儀表板</h2>
+    <p style="font-size:13px;color:var(--text-light)">歡迎回來，${CU.name}</p></div>
+    <button class="btn btn-ghost btn-sm" onclick="_dbData=null;renderDashboard()">🔄 重新整理</button>
+  </div>
+
+  <!-- Month summary cards -->
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px">
+    ${months.map(mo=>`
+    <div onclick="_dbMonth='${mo.key}';renderDashboardUI()" style="background:${mo.isCurrent?'var(--primary)':'var(--card)'};color:${mo.isCurrent?'#fff':'var(--text)'};border-radius:10px;padding:18px 20px;box-shadow:0 1px 4px rgba(0,0,0,0.08);cursor:pointer;border:2px solid ${mo.isCurrent?'var(--primary)':'var(--border)'};transition:all 0.15s">
+      <div style="font-size:12px;opacity:0.75;margin-bottom:4px">${mo.label}</div>
+      <div style="font-size:28px;font-weight:800">${mo.done} <span style="font-size:14px;font-weight:400">/ ${mo.total} 單位</span></div>
+      <div style="margin-top:8px;background:rgba(255,255,255,0.25);border-radius:4px;height:6px;overflow:hidden">
+        <div style="height:100%;background:${mo.isCurrent?'#fff':'var(--success)'};width:${mo.total>0?Math.round(mo.done/mo.total*100):0}%;border-radius:4px;transition:width 0.5s"></div>
+      </div>
+      <div style="font-size:11px;margin-top:4px;opacity:0.8">${mo.total>0?Math.round(mo.done/mo.total*100):0}% 完成</div>
+    </div>`).join('')}
+  </div>
+
+  <!-- Month detail -->
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;padding-bottom:10px;border-bottom:2px solid var(--bg)">
+      <div style="font-size:16px;font-weight:700;color:var(--primary)">📋 ${monthLabel} 查核明細</div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <button class="btn btn-ghost btn-sm" onclick="_dbMonth='${prevMonth}';renderDashboardUI()">‹ 上月</button>
+        <span style="font-size:13px;font-weight:600;color:var(--primary-dark)">${completedCount}/${totalUnits} 單位完成（${pct}%）</span>
+        <button class="btn btn-ghost btn-sm" ${isCurrentMonth?'disabled style="opacity:0.4"':''} onclick="_dbMonth='${nextMonth}';renderDashboardUI()">下月 ›</button>
+      </div>
+    </div>
+
+    <!-- Progress bar -->
+    <div style="background:var(--bg);border-radius:6px;height:10px;margin-bottom:16px;overflow:hidden">
+      <div style="height:100%;background:linear-gradient(90deg,var(--primary),var(--success));width:${pct}%;border-radius:6px;transition:width 0.5s"></div>
+    </div>
+
+    ${campuses.map(campus => {
+      const campusUnits = activeUnits.filter(u=>u.campus===campus);
+      return `
+      <div style="margin-bottom:18px">
+        <div style="font-size:12px;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;padding:4px 10px;background:var(--bg);border-radius:4px">${campus}院區</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px">
+          ${campusUnits.map(u => {
+            const done = auditedUnits.has(u.code);
+            const lastAudit = monthAudits.filter(a=>a.unitCode===u.code).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0))[0];
+            return `<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:8px;border:1px solid ${done?'#a8dfc0':'var(--border)'};background:${done?'#f0faf5':'#fff'}">
+              <span style="font-size:18px">${done?'✅':'⬜'}</span>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${u.name}</div>
+                <div style="font-size:11px;color:var(--text-light)">${done ? (lastAudit?.auditDate||'') + ' · ' + (lastAudit?.pharmacistName||lastAudit?.pharmacist||'') : '未查核'}</div>
+              </div>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>`;
+    }).join('')}
+
+    ${activeUnits.filter(u=>!u.campus).length > 0 ? `
+    <div style="margin-bottom:18px">
+      <div style="font-size:12px;font-weight:700;color:var(--text-light);margin-bottom:8px">其他</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px">
+        ${activeUnits.filter(u=>!u.campus).map(u => {
+          const done = auditedUnits.has(u.code);
+          return `<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:8px;border:1px solid ${done?'#a8dfc0':'var(--border)'};background:${done?'#f0faf5':'#fff'}">
+            <span>${done?'✅':'⬜'}</span>
+            <div><div style="font-size:13px;font-weight:600">${u.name}</div>
+            <div style="font-size:11px;color:var(--text-light)">${done?'已完成':'未查核'}</div></div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>` : ''}
+  </div>`);
+}
+window.renderDashboard = renderDashboard;
+window.renderDashboardUI = renderDashboardUI;
 
 // ══════════════════════════════════════
 // AUDIT
@@ -596,7 +680,7 @@ function renderCompare() {
   <div class="page-header"><h2>📋 請領比對</h2><p>匯入請領 XLS 檔案，自動比對品項及常備量</p></div>
   <div class="card">
     <div class="card-title">匯入請領記錄</div>
-    <div class="alert alert-info">支援格式：從系統匯出的 .xls / .xlsx 檔案（欄位：收藥部門、庫存碼、商品名、核發數量）</div>
+    <div class="alert alert-info">支援格式：從系統匯出的 .xls / .xlsx 檔案（欄位：領單號碼、收藥部門、庫存碼、商品名、核發數量）</div>
     <div class="upload-zone" onclick="document.getElementById('xls-up').click()">
       <div class="icon">📂</div><div>點擊或拖放 XLS 檔案至此處</div>
       <div class="text-sm mt-2">Receive_Report_xxxx.xls</div>
@@ -690,8 +774,9 @@ async function processCompare(rows) {
         <span class="text-sm" style="align-self:center">🔴 未備有（清單無此品項）　🟠 超過常備量　✅ 正常</span>
       </div>
       <div class="tbl-wrap"><table>
-        <tr><th>收藥部門</th><th>單位名稱</th><th>庫存碼</th><th>藥品名稱</th><th>核發數量</th><th>常備量基準</th><th>狀態</th></tr>
+        <tr><th>領單號碼</th><th>收藥部門</th><th>單位名稱</th><th>庫存碼</th><th>藥品名稱</th><th>核發數量</th><th>常備量基準</th><th>狀態</th></tr>
         ${CD.map(r=>`<tr class="${r.status==='missing'?'row-missing':r.status==='excess'?'row-excess':'row-ok'}">
+          <td style="font-size:11px;color:#5a7085">${r.orderNos||'—'}</td>
           <td>${r.dept}</td><td>${r.unitName}</td><td>${r.code}</td>
           <td style="font-size:12px">${r.name}</td>
           <td style="text-align:center">${r.qty}</td><td style="text-align:center">${r.baseQty}</td>
