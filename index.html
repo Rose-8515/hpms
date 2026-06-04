@@ -752,6 +752,9 @@ async function processCompare(rows) {
       const status=bq===undefined?'missing':qty>bq?'excess':'ok';
       CD.push({dept, unitName:un, code, name:name||dMap[code]||code, qty, baseQty:bq??'—', status, orderNos:orderNo});
     });
+    // 排序：未備有 → 超量 → 正常
+    const statusOrder = {missing:0, excess:1, ok:2};
+    CD.sort((a,b) => statusOrder[a.status] - statusOrder[b.status]);
     const missing=CD.filter(r=>r.status==='missing').length;
     const excess=CD.filter(r=>r.status==='excess').length;
     const ok=CD.filter(r=>r.status==='ok').length;
