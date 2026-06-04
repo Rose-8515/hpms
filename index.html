@@ -215,7 +215,7 @@ async function doLogin() {
     document.getElementById('tb-name').textContent = CU.name;
     document.getElementById('tb-role').textContent = RL[CU.role] || CU.role;
     document.getElementById('tb-role').style.background = RC[CU.role] || '#666';
-    buildSidebar(); navigate('dashboard');
+    buildSidebar(); navigate(CU.role==='clerk' ? 'compare' : 'dashboard');
   } catch(e) { hideLoading(); err.textContent = '連線失敗：' + e.message; }
 }
 window.doLogin = doLogin;
@@ -231,7 +231,7 @@ window.doLogout = doLogout;
 
 function canDo(f) {
   const map = {
-    dashboard:['admin','rpharma','pharmacist','clerk'],
+    dashboard:['admin','rpharma','pharmacist'],
     compare:['admin','rpharma','pharmacist','clerk'],
     query:['admin','rpharma','pharmacist','clerk'],
     audit:['admin','rpharma','pharmacist'],
@@ -780,9 +780,73 @@ function viewAuditRecord(id) {
     </tr>`).join('')}
   </table></div>
   ${r.unitSig?`<div style="margin-top:12px"><div style="font-size:12px;color:#5a7085;margin-bottom:4px">單位負責人簽章</div><img src="${r.unitSig}" style="border:1px solid #ccc;border-radius:4px;max-width:200px"/></div>`:''}
-  <div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">關閉</button></div>`);
+  <div class="modal-actions">
+    <button class="btn btn-primary" onclick="exportRecordPDF('${r._id}')">📄 匯出 PDF</button>
+    <button class="btn btn-ghost" onclick="closeModal()">關閉</button>
+  </div>`);
 }
 window.viewAuditRecord = viewAuditRecord;
+
+function exportRecordPDF(id) {
+  const r = (window._arRecords||[]).find(x=>x._id===id);
+  if(!r) return;
+  const win = window.open('','_blank');
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
+  <style>
+    body{font-family:'Microsoft JhengHei',sans-serif;font-size:12px;padding:24px;color:#1e2d3d}
+    h2{text-align:center;font-size:16px;margin-bottom:4px}
+    .meta{display:flex;justify-content:space-between;margin-bottom:10px;font-size:12px;color:#444}
+    table{width:100%;border-collapse:collapse;margin-top:10px}
+    th{background:#1a4f7a;color:#fff;padding:6px 8px;text-align:center;font-size:11px}
+    td{padding:5px 8px;border-bottom:1px solid #ddd;font-size:11px}
+    td:first-child{text-align:center}
+    td:nth-child(3),td:nth-child(4),td:nth-child(5),td:nth-child(6){text-align:center}
+    .excess{background:#fdf0e0}
+    .signs{display:flex;justify-content:space-around;margin-top:30px;gap:20px}
+    .sign-box{flex:1;border-top:1px solid #333;text-align:center;padding-top:8px;font-size:12px}
+    .sign-box .label{font-size:11px;color:#666;margin-bottom:6px}
+    @media print{.no-print{display:none}body{padding:12px}}
+  </style></head><body>
+  <h2>不計價藥品查核表</h2>
+  <div class="meta">
+    <span>常備單位：<b>${r.unitName||r.unitCode}</b></span>
+    <span>查核日期：<b>${r.auditDate||''}</b></span>
+  </div>
+  <div class="meta">
+    <span>查核藥師：<b>${r.pharmacistName||r.pharmacist||''}</b>（${r.pharmacistId||''}）</span>
+    <span>負責人員工號：<b>${r.unitHeadId||''}</b></span>
+  </div>
+  <table>
+    <tr><th>項次</th><th style="text-align:left">藥品名稱及規格</th><th>基本常備量</th><th>實際庫存量</th><th>效期管理</th><th>定位管理</th><th style="text-align:left">備註</th></tr>
+    ${(r.items||[]).map((item,i)=>`<tr class="${item.actual>item.baseQty?'excess':''}">
+      <td>${i+1}</td>
+      <td>${item.name||item.code}</td>
+      <td>${item.baseQty}</td>
+      <td style="font-weight:${item.actual>item.baseQty?700:400};color:${item.actual>item.baseQty?'#e67e22':''}">${item.actual}</td>
+      <td>${item.expOk?'✓':'NA'}</td>
+      <td>${item.locOk?'✓':'NA'}</td>
+      <td>${item.note||''}</td>
+    </tr>`).join('')}
+  </table>
+  <div class="signs">
+    <div class="sign-box">
+      <div class="label">查核藥師</div>
+      <div style="font-size:14px;font-weight:700;padding:8px 0">${r.pharmacistName||r.pharmacist||''}</div>
+      <div style="font-size:11px;color:#666">${r.pharmacistId||''}</div>
+    </div>
+    <div class="sign-box">
+      <div class="label">單位負責人簽章</div>
+      ${r.unitSig?`<img src="${r.unitSig}" style="max-width:160px;max-height:70px;display:block;margin:4px auto"/>`:
+        '<div style="height:60px"></div>'}
+      <div style="font-size:11px;color:#666;margin-top:4px">員工號：${r.unitHeadId||''}</div>
+    </div>
+  </div>
+  <div style="margin-top:16px;font-size:10px;color:#999;text-align:right">列印時間：${new Date().toLocaleString('zh-TW')}</div>
+  <button class="no-print" onclick="window.print()" style="margin-top:16px;padding:8px 24px;background:#1a4f7a;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:14px">🖨️ 列印 / 儲存 PDF</button>
+  </body></html>`);
+  win.document.close();
+}
+window.exportRecordPDF = exportRecordPDF;
 
 async function deleteAuditRecord(id) {
   if(!confirm('確定要刪除此筆查核紀錄？')) return;
