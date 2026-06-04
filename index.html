@@ -736,30 +736,21 @@ async function processCompare(rows) {
     udRows.forEach(r => { if(!udMap[r.unitCode]) udMap[r.unitCode]={}; udMap[r.unitCode][r.drugCode]=r.baseQty; });
     const dMap = Object.fromEntries(drugs.map(d=>[d.code,d.name]));
     const uMap = Object.fromEntries(units.map(u=>[u.code,u.name]));
-    const byDept = {};
+    // 每筆領單獨立一列比對
+    CD = [];
     rows.forEach(r => {
       const dept=(r['收藥部門']||'').trim();
       const code=(r['庫存碼']||'').trim();
       const qty=parseFloat(r['核發數量']||'0')||0;
       const name=(r['商品名']||'').trim();
-      // Strip ="..." format from 領單號碼
       const rawOrder=(r['領單號碼']||'').toString().trim();
       const orderNo=rawOrder.replace(/^=?"?/,'').replace(/"$/,'');
       if(!dept||!code) return;
-      if(!byDept[dept]) byDept[dept]={};
-      if(!byDept[dept][code]) byDept[dept][code]={name,qty:0,orderNos:new Set()};
-      byDept[dept][code].qty += qty;
-      if(orderNo) byDept[dept][code].orderNos.add(orderNo);
-    });
-    CD = [];
-    Object.entries(byDept).forEach(([dept,dm]) => {
-      const ul = udMap[dept]||{};
-      const un = uMap[dept]||dept;
-      Object.entries(dm).forEach(([code,info]) => {
-        const bq = ul[code];
-        const status = bq===undefined?'missing':info.qty>bq?'excess':'ok';
-        CD.push({dept, unitName:un, code, name:info.name||dMap[code]||code, qty:info.qty, baseQty:bq??'—', status, orderNos:[...info.orderNos].join(', ')});
-      });
+      const ul=udMap[dept]||{};
+      const un=uMap[dept]||dept;
+      const bq=ul[code];
+      const status=bq===undefined?'missing':qty>bq?'excess':'ok';
+      CD.push({dept, unitName:un, code, name:name||dMap[code]||code, qty, baseQty:bq??'—', status, orderNos:orderNo});
     });
     const missing=CD.filter(r=>r.status==='missing').length;
     const excess=CD.filter(r=>r.status==='excess').length;
