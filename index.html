@@ -220,6 +220,12 @@ async function doLogin() {
 }
 window.doLogin = doLogin;
 
+function toggleSidebar() {
+  const sb = document.getElementById('sidebar');
+  sb.classList.toggle('collapsed');
+}
+window.toggleSidebar = toggleSidebar;
+
 function doLogout() {
   CU = null;
   document.getElementById('app').classList.add('hidden');
@@ -1588,6 +1594,7 @@ window.deleteUser = deleteUser;
 
 <div id="app" class="hidden">
   <div id="topbar">
+    <button id="sidebar-toggle" onclick="toggleSidebar()" style="background:none;border:none;color:#fff;font-size:20px;cursor:pointer;padding:0 8px;line-height:1">☰</button>
     <div class="logo">💊 <span>不計價常備藥品</span>管理系統</div>
     <div class="user-info">
       <span id="tb-name">-</span>
@@ -1619,7 +1626,9 @@ body{font-family:'Segoe UI','Microsoft JhengHei',sans-serif;background:var(--bg)
 #topbar .logout-btn{background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);color:#fff;padding:4px 12px;border-radius:4px;cursor:pointer;font-size:12px;}
 #topbar .logout-btn:hover{background:rgba(255,255,255,0.25);}
 #app-body{display:flex;flex:1;}
-#sidebar{width:var(--sidebar-w);background:var(--primary-dark);color:#fff;display:flex;flex-direction:column;padding:16px 0;position:sticky;top:58px;height:calc(100vh - 58px);overflow-y:auto;}
+#sidebar{width:var(--sidebar-w);background:var(--primary-dark);color:#fff;display:flex;flex-direction:column;padding:16px 0;position:sticky;top:58px;height:calc(100vh - 58px);overflow-y:auto;overflow-x:hidden;transition:width 0.25s ease,padding 0.25s ease;}
+#sidebar.collapsed{width:0;padding:0;}
+#sidebar.collapsed .section-label,#sidebar.collapsed .nav-item span:last-child{display:none;}
 #sidebar .section-label{font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:rgba(255,255,255,0.4);padding:12px 20px 4px;}
 #sidebar .nav-item{display:flex;align-items:center;gap:10px;padding:10px 20px;cursor:pointer;font-size:13px;color:rgba(255,255,255,0.75);transition:all 0.15s;border-left:3px solid transparent;}
 #sidebar .nav-item:hover{background:rgba(255,255,255,0.07);color:#fff;}
