@@ -618,8 +618,17 @@ async function saveAudit() {
   showLoading('儲存至雲端...');
   try {
     const unitHeadId = document.getElementById('unit-head-id')?.value||'';
-    if (unitHeadId && !/^Y\d{5}$/.test(unitHeadId)) {
-      hideLoading(); alert('單位負責人員工號格式錯誤，請填寫 Y+5碼數字（如 Y09999）'); return;
+    if (!unitHeadId) {
+      hideLoading(); alert('請填寫單位負責人員工號'); 
+      document.getElementById('unit-head-id').focus(); return;
+    }
+    if (!/^Y\d{5}$/.test(unitHeadId)) {
+      hideLoading(); alert('單位負責人員工號格式錯誤，請填寫 Y+5碼數字（如 Y09999）');
+      document.getElementById('unit-head-id').focus(); return;
+    }
+    if (!SP['unit']) {
+      hideLoading(); alert('請完成單位負責人手寫簽名');
+      document.getElementById('sig-unit').scrollIntoView({behavior:'smooth'}); return;
     }
     // Check all excess items have notes
     const missingNote = AS.items.filter(item => item.actual > item.baseQty && !item.note.trim());
