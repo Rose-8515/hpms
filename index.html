@@ -742,10 +742,14 @@ async function processCompare(rows) {
       const code=(r['庫存碼']||'').trim();
       const qty=parseFloat(r['核發數量']||'0')||0;
       const name=(r['商品名']||'').trim();
+      // Strip ="..." format from 領單號碼
+      const rawOrder=(r['領單號碼']||'').toString().trim();
+      const orderNo=rawOrder.replace(/^=?"?/,'').replace(/"$/,'');
       if(!dept||!code) return;
       if(!byDept[dept]) byDept[dept]={};
-      if(!byDept[dept][code]) byDept[dept][code]={name,qty:0};
+      if(!byDept[dept][code]) byDept[dept][code]={name,qty:0,orderNos:new Set()};
       byDept[dept][code].qty += qty;
+      if(orderNo) byDept[dept][code].orderNos.add(orderNo);
     });
     CD = [];
     Object.entries(byDept).forEach(([dept,dm]) => {
@@ -754,7 +758,7 @@ async function processCompare(rows) {
       Object.entries(dm).forEach(([code,info]) => {
         const bq = ul[code];
         const status = bq===undefined?'missing':info.qty>bq?'excess':'ok';
-        CD.push({dept, unitName:un, code, name:info.name||dMap[code]||code, qty:info.qty, baseQty:bq??'—', status});
+        CD.push({dept, unitName:un, code, name:info.name||dMap[code]||code, qty:info.qty, baseQty:bq??'—', status, orderNos:[...info.orderNos].join(', ')});
       });
     });
     const missing=CD.filter(r=>r.status==='missing').length;
@@ -1378,7 +1382,7 @@ window.deleteUser = deleteUser;
 <div id="login-screen" class="hidden">
   <div class="login-box">
     <h1>🏥 不計價常備藥品管理系統</h1>
-    <p class="sub">雲林縣立醫院藥品管理系統</p>
+
     <div class="form-group"><label>員工號</label><input id="login-id" type="text" placeholder="請輸入員工號" onkeydown="if(event.key==='Enter')doLogin()"/></div>
     <div class="form-group"><label>密碼</label><input id="login-pw" type="password" placeholder="請輸入密碼" onkeydown="if(event.key==='Enter')doLogin()"/></div>
     <div id="login-err" class="login-error"></div>
