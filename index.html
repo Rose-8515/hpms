@@ -1005,7 +1005,7 @@ window.exportCompare = exportCompare;
 async function renderQuery() {
   showLoading('載入...');
   const units = await fsGetAll('units');
-  units.sort((a,b)=>a.code.localeCompare(b.code));
+  units.sort((a,b)=>a.name.localeCompare(b.name,'zh-TW'));
   hideLoading();
   window._queryUnits = units;
   const qCampuses=[...new Set(units.map(u=>u.campus).filter(Boolean))].sort();
@@ -1014,20 +1014,19 @@ async function renderQuery() {
   <div class="card">
     <div class="card-title">查詢條件</div>
     <div class="form-row">
-      <div class="form-group" style="min-width:140px"><label>院區</label>
-        <select id="q-campus" onchange="onCampusChange('q-campus','q-unit',window._queryUnits,''); document.getElementById('q-unit').insertAdjacentHTML('afterbegin','<option value=\"\" selected>-- 全部單位 --</option>')">
-          <option value="">-- 全部院區 --</option>
+      <div class="form-group" style="min-width:160px"><label>院區</label>
+        <select id="q-campus" onchange="onCampusChange('q-campus','q-unit',window._queryUnits,'')">
+          <option value="">-- 請選擇院區 --</option>
           ${qCampuses.map(c=>`<option value="${c}">${c}院區</option>`).join('')}
         </select>
       </div>
       <div class="form-group" style="min-width:200px"><label>醫療單位</label>
         <select id="q-unit">
-          <option value="">-- 全部單位 --</option>
-          ${units.map(u=>`<option value="${u.code}">${u.name} (${u.code})</option>`).join('')}
+          <option value="">-- 請先選院區 --</option>
         </select>
       </div>
       <div class="form-group"><label>藥品名稱/庫存碼</label>
-        <input type="text" id="q-drug" placeholder="搜尋關鍵字..."/>
+        <input type="text" id="q-drug" placeholder="搜尋關鍵字..." onkeydown="if(event.key==='Enter')runQuery()"/>
       </div>
       <button class="btn btn-primary" style="align-self:flex-end" onclick="runQuery()">🔍 查詢</button>
       <button class="btn btn-success" style="align-self:flex-end" onclick="exportQuery()">📥 匯出 Excel</button>
