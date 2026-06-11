@@ -1622,8 +1622,7 @@ window.deleteUser = deleteUser;
   <div class="login-box">
     <h1>🏥 不計價常備藥品管理系統</h1>
 
-    <div class="form-group"><label>員工號</label><input id="login-id" type="text" placeholder="請輸入員工號" onkeydown="if(event.key==='Enter')doLogin()"/></div>
-    <div class="form-group"><label>密碼</label><input id="login-pw" type="password" placeholder="請輸入密碼" onkeydown="if(event.key==='Enter')doLogin()"/></div>
+    <div class="form-group"><label>員工號</label><input id="login-id" type="text" placeholder="請輸入員工號" onkeydown="if(event.key==='Enter')doLogin()" style="font-size:16px;letter-spacing:2px"/></div>
     <div id="login-err" class="login-error"></div>
     <button class="btn btn-primary" onclick="doLogin()">登入</button>
   </div>
