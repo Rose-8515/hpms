@@ -200,15 +200,14 @@ const RC = {admin:'#8e44ad', rpharma:'#1a6fa5', pharmacist:'#27ae60', clerk:'#7f
 
 async function doLogin() {
   const id = document.getElementById('login-id').value.trim();
-  const pw = document.getElementById('login-pw').value;
   const err = document.getElementById('login-err');
   err.textContent = '';
-  if (!id || !pw) { err.textContent = '請輸入員工號及密碼'; return; }
+  if (!id) { err.textContent = '請輸入員工號'; return; }
   showLoading('驗證中...');
   try {
     const u = await fsGet('users', id);
     hideLoading();
-    if (!u || u.pw !== pw) { err.textContent = '員工號或密碼錯誤'; return; }
+    if (!u) { err.textContent = '查無此員工號，請確認後重試'; return; }
     CU = u;
     document.getElementById('login-screen').classList.add('hidden');
     document.getElementById('app').classList.remove('hidden');
@@ -231,7 +230,6 @@ function doLogout() {
   document.getElementById('app').classList.add('hidden');
   document.getElementById('login-screen').classList.remove('hidden');
   document.getElementById('login-id').value = '';
-  document.getElementById('login-pw').value = '';
 }
 window.doLogout = doLogout;
 
@@ -273,8 +271,19 @@ function buildSidebar() {
   }).join('');
 }
 let CP = '';
+const SETTINGS_PAGES = ['druglist','drugdb','units','users'];
+
 function navigate(page) {
   if (!canDo(page)) { renderMain('<div class="alert alert-warn">⚠️ 您無此功能的使用權限</div>'); return; }
+  // Settings pages require password verification
+  if (SETTINGS_PAGES.includes(page)) {
+    showPasswordPrompt(page); return;
+  }
+  doNavigate(page);
+}
+window.navigate = navigate;
+
+function doNavigate(page) {
   CP = page;
   document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
   const nav = document.getElementById('nav-' + page);
@@ -282,7 +291,35 @@ function navigate(page) {
   ({dashboard:renderDashboard, audit:renderAudit, auditRecords:renderAuditRecords, compare:renderCompare, query:renderQuery,
     druglist:renderDrugList, drugdb:renderDrugDB, units:renderUnits, users:renderUsers}[page] || (()=>{}))();
 }
-window.navigate = navigate;
+window.doNavigate = doNavigate;
+
+function showPasswordPrompt(targetPage) {
+  showModal(`
+  <div class="modal-title">🔒 請輸入密碼</div>
+  <p style="font-size:13px;color:var(--text-light);margin-bottom:16px">進入「設定管理」需驗證身份</p>
+  <div class="form-group">
+    <label>密碼</label>
+    <input type="password" id="settings-pw" placeholder="請輸入您的密碼" style="width:100%"
+      onkeydown="if(event.key==='Enter')verifySettingsPw('${targetPage}')"/>
+  </div>
+  <div id="settings-pw-err" style="color:var(--danger);font-size:12px;margin-top:6px;min-height:16px"></div>
+  <div class="modal-actions">
+    <button class="btn btn-ghost" onclick="closeModal()">取消</button>
+    <button class="btn btn-primary" onclick="verifySettingsPw('${targetPage}')">確認</button>
+  </div>`);
+  setTimeout(()=>document.getElementById('settings-pw')?.focus(), 100);
+}
+window.showPasswordPrompt = showPasswordPrompt;
+
+async function verifySettingsPw(targetPage) {
+  const pw = document.getElementById('settings-pw')?.value||'';
+  const errEl = document.getElementById('settings-pw-err');
+  if (!pw) { errEl.textContent = '請輸入密碼'; return; }
+  if (pw !== CU.pw) { errEl.textContent = '密碼錯誤，請重試'; return; }
+  closeModalFn();
+  doNavigate(targetPage);
+}
+window.verifySettingsPw = verifySettingsPw;
 
 // ══════════════════════════════════════
 // DASHBOARD
