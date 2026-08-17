@@ -163,17 +163,25 @@ function numpadConfirm() {
   // Update actual qty
   AS.items[i].actual = val;
   const btn = document.getElementById('actual-' + i);
-  if (btn) btn.textContent = val;
 
-  // Update note text based on location selection
+  // Determine location label
+  const locLabel = _numpadLoc === 'sink' ? '洗手台' : _numpadLoc === 'cart' ? '治療車' : '';
+
+  // Show on button: number + location (if set)
+  if (btn) {
+    if (locLabel) {
+      btn.innerHTML = val + '<br><span style="font-size:11px;font-weight:600;color:#2d7ab5">' + locLabel + '</span>';
+    } else {
+      btn.textContent = val;
+    }
+  }
+
+  // Update note text
   const txt = document.getElementById('note-' + i);
   if (txt) {
-    if (_numpadLoc === 'sink') {
-      txt.value = '洗手台';
-    } else if (_numpadLoc === 'cart') {
-      txt.value = '治療車';
+    if (locLabel) {
+      txt.value = locLabel;
     }
-    // Sync to AS.items
     AS.items[i].note = txt.value.trim();
   }
 
@@ -648,7 +656,7 @@ async function startAudit() {
           <td style="text-align:center">${item.baseQty}</td>
           <td>
             <button id="actual-${i}" onclick="openNumpad(${i})"
-              style="width:80px;height:34px;border:1px solid #aac8ef;border-radius:6px;background:#e6f0fb;font-size:16px;font-weight:700;color:#1a4f7a;cursor:pointer;text-align:center">
+              style="width:80px;height:48px;border:1px solid #aac8ef;border-radius:6px;background:#e6f0fb;font-size:14px;font-weight:700;color:#1a4f7a;cursor:pointer;text-align:center;line-height:1.3;padding:2px 4px">
               ${item.actual}
             </button>
           </td>
