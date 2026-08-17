@@ -164,19 +164,13 @@ function numpadConfirm() {
   const btn = document.getElementById('actual-' + i);
   if (btn) btn.textContent = val;
 
-  // Update location note dropdown
-  const sel = document.getElementById('note-sel-' + i);
-  if (sel) {
-    if (_numpadLoc === 'sink') {
-      sel.value = '洗手台';
-      const txt = document.getElementById('note-' + i);
-      if (txt) txt.style.display = 'none';
-    } else if (_numpadLoc === 'cart') {
-      sel.value = '治療車';
-      const txt = document.getElementById('note-' + i);
-      if (txt) txt.style.display = 'none';
+  // Update note text based on location selection
+  const txt = document.getElementById('note-' + i);
+  if (txt && _numpadLoc) {
+    const locLabel = _numpadLoc === 'sink' ? '洗手台' : '治療車';
+    if (!txt.value || txt.value === '洗手台' || txt.value === '治療車') {
+      txt.value = locLabel;
     }
-    // else: don't change existing note selection
   }
 
   // Sync note
@@ -667,15 +661,8 @@ async function startAudit() {
             </select>
           </td>
           <td>
-            <select id="note-sel-${i}" onchange="handleNoteSelect(${i})"
-              style="width:90px;border:1px solid #ccc;border-radius:4px;padding:4px 5px;font-size:12px;margin-bottom:2px">
-              <option value="">-- 選擇 --</option>
-              <option value="洗手台">洗手台</option>
-              <option value="治療車">治療車</option>
-              <option value="其他說明">其他說明</option>
-            </select>
-            <input type="text" id="note-${i}" placeholder="說明內容" onchange="upAudit(${i},'note',buildNote(${i}))"
-              style="display:none;width:120px;border:1px solid #ccc;border-radius:4px;padding:4px 6px;font-size:12px;margin-top:2px"/>
+            <input type="text" id="note-${i}" placeholder="備註說明" onchange="upAudit(${i},'note',this.value)"
+              style="width:100px;border:1px solid #ccc;border-radius:4px;padding:4px 6px;font-size:12px"/>
             <div id="note-warn-${i}" style="font-size:10px;color:#c0392b;display:none">⚠️ 超量請填備註</div>
           </td>
         </tr>`).join('')}
@@ -740,47 +727,26 @@ function checkExcess(i) {
   const noteEl = document.getElementById('note-'+i);
   const warnEl = document.getElementById('note-warn-'+i);
   if (!actualEl || !noteEl || !warnEl) return;
-  const selEl = document.getElementById('note-sel-'+i);
   if (isExcess) {
-    actualEl.style.border = '2px solid #e67e22';
     actualEl.style.background = '#fdf0e0';
-    if(selEl) { selEl.style.border = '2px solid #c0392b'; selEl.style.background = '#fde8e6'; }
+    actualEl.style.borderColor = '#e67e22';
     if(noteEl) { noteEl.style.border = '2px solid #c0392b'; noteEl.style.background = '#fde8e6'; noteEl.placeholder = '⚠️ 請填寫超量原因'; }
     warnEl.style.display = 'block';
   } else {
-    actualEl.style.border = '1px solid #ccc';
-    actualEl.style.background = '';
-    if(selEl) { selEl.style.border = '1px solid #ccc'; selEl.style.background = ''; }
-    if(noteEl) { noteEl.style.border = '1px solid #ccc'; noteEl.style.background = ''; noteEl.placeholder = '說明內容'; }
+    actualEl.style.background = '#e6f0fb';
+    actualEl.style.borderColor = '#aac8ef';
+    if(noteEl) { noteEl.style.border = '1px solid #ccc'; noteEl.style.background = ''; noteEl.placeholder = '備註說明'; }
     warnEl.style.display = 'none';
   }
 }
 window.upAudit = upAudit;
 window.checkExcess = checkExcess;
 
-function handleNoteSelect(i) {
-  const sel = document.getElementById('note-sel-'+i);
-  const txt = document.getElementById('note-'+i);
-  if (sel.value === '其他說明') {
-    txt.style.display = 'block';
-    txt.focus();
-  } else {
-    txt.style.display = 'none';
-    txt.value = '';
-  }
-  AS.items[i].note = buildNote(i);
-  checkExcess(i);
-}
-window.handleNoteSelect = handleNoteSelect;
+
 
 function buildNote(i) {
-  const sel = document.getElementById('note-sel-'+i);
   const txt = document.getElementById('note-'+i);
-  if (!sel) return '';
-  if (sel.value === '其他說明') {
-    return txt?.value?.trim() ? '其他：' + txt.value.trim() : '其他說明';
-  }
-  return sel.value || '';
+  return txt?.value?.trim() || '';
 }
 window.buildNote = buildNote;
 
@@ -841,7 +807,7 @@ async function saveAudit() {
     }
     // Check all excess items have notes
     // Sync all notes before save
-    AS.items.forEach((item,i) => { item.note = buildNote(i); });
+    AS.items.forEach((item,i) => { const t=document.getElementById('note-'+i); if(t) item.note=t.value.trim(); });
     const missingNote = AS.items.filter(item => item.actual > item.baseQty && !item.note.trim());
     if (missingNote.length > 0) {
       hideLoading();
@@ -2037,23 +2003,18 @@ window.deleteUser = deleteUser;
     </div>
     <!-- Number pad -->
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px">
-      ${[7,8,9,4,5,6,1,2,3].map(n=>`
-      <button onclick="numpadPress(${n})"
-        style="padding:14px;border:1px solid #cdd5de;border-radius:8px;background:#f4f8fc;font-size:22px;font-weight:700;color:#1e2d3d;cursor:pointer">
-        ${n}
-      </button>`).join('')}
-      <button onclick="numpadPress('00')"
-        style="padding:14px;border:1px solid #cdd5de;border-radius:8px;background:#f4f8fc;font-size:18px;font-weight:700;color:#1e2d3d;cursor:pointer">
-        00
-      </button>
-      <button onclick="numpadPress(0)"
-        style="padding:14px;border:1px solid #cdd5de;border-radius:8px;background:#f4f8fc;font-size:22px;font-weight:700;color:#1e2d3d;cursor:pointer">
-        0
-      </button>
-      <button onclick="numpadClear()"
-        style="padding:14px;border:1px solid #cdd5de;border-radius:8px;background:#fde8e6;font-size:16px;font-weight:700;color:#c0392b;cursor:pointer">
-        清除
-      </button>
+      <button onclick="numpadPress(7)" style="padding:14px;border:1px solid #cdd5de;border-radius:8px;background:#f4f8fc;font-size:22px;font-weight:700;color:#1e2d3d;cursor:pointer">7</button>
+      <button onclick="numpadPress(8)" style="padding:14px;border:1px solid #cdd5de;border-radius:8px;background:#f4f8fc;font-size:22px;font-weight:700;color:#1e2d3d;cursor:pointer">8</button>
+      <button onclick="numpadPress(9)" style="padding:14px;border:1px solid #cdd5de;border-radius:8px;background:#f4f8fc;font-size:22px;font-weight:700;color:#1e2d3d;cursor:pointer">9</button>
+      <button onclick="numpadPress(4)" style="padding:14px;border:1px solid #cdd5de;border-radius:8px;background:#f4f8fc;font-size:22px;font-weight:700;color:#1e2d3d;cursor:pointer">4</button>
+      <button onclick="numpadPress(5)" style="padding:14px;border:1px solid #cdd5de;border-radius:8px;background:#f4f8fc;font-size:22px;font-weight:700;color:#1e2d3d;cursor:pointer">5</button>
+      <button onclick="numpadPress(6)" style="padding:14px;border:1px solid #cdd5de;border-radius:8px;background:#f4f8fc;font-size:22px;font-weight:700;color:#1e2d3d;cursor:pointer">6</button>
+      <button onclick="numpadPress(1)" style="padding:14px;border:1px solid #cdd5de;border-radius:8px;background:#f4f8fc;font-size:22px;font-weight:700;color:#1e2d3d;cursor:pointer">1</button>
+      <button onclick="numpadPress(2)" style="padding:14px;border:1px solid #cdd5de;border-radius:8px;background:#f4f8fc;font-size:22px;font-weight:700;color:#1e2d3d;cursor:pointer">2</button>
+      <button onclick="numpadPress(3)" style="padding:14px;border:1px solid #cdd5de;border-radius:8px;background:#f4f8fc;font-size:22px;font-weight:700;color:#1e2d3d;cursor:pointer">3</button>
+      <button onclick="numpadPress('00')" style="padding:14px;border:1px solid #cdd5de;border-radius:8px;background:#f4f8fc;font-size:18px;font-weight:700;color:#1e2d3d;cursor:pointer">00</button>
+      <button onclick="numpadPress(0)" style="padding:14px;border:1px solid #cdd5de;border-radius:8px;background:#f4f8fc;font-size:22px;font-weight:700;color:#1e2d3d;cursor:pointer">0</button>
+      <button onclick="numpadClear()" style="padding:14px;border:1px solid #cdd5de;border-radius:8px;background:#fde8e6;font-size:16px;font-weight:700;color:#c0392b;cursor:pointer">清除</button>
     </div>
     <!-- Confirm -->
     <button onclick="numpadConfirm()"
