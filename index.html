@@ -82,6 +82,120 @@ function closeModalFn(e) {
 window.closeModal = closeModalFn;
 
 // ══════════════════════════════════════
+// NUMPAD
+// ══════════════════════════════════════
+let _numpadIdx = -1;
+let _numpadVal = '0';
+let _numpadLoc = ''; // 'sink' or 'cart'
+
+function openNumpad(i) {
+  _numpadIdx = i;
+  _numpadVal = String(AS.items[i].actual);
+  _numpadLoc = '';
+
+  // Sync location from current note selection
+  const sel = document.getElementById('note-sel-' + i);
+  if (sel?.value === '洗手台') { _numpadLoc = 'sink'; }
+  else if (sel?.value === '治療車') { _numpadLoc = 'cart'; }
+
+  document.getElementById('numpad-display').textContent = _numpadVal;
+  document.getElementById('numpad-drug-name').textContent = AS.items[i].name || '';
+  updateNumpadLocationBtns();
+  document.getElementById('numpad-overlay').classList.remove('hidden');
+}
+window.openNumpad = openNumpad;
+
+function closeNumpad(e) {
+  if (e && e.target !== document.getElementById('numpad-overlay')) return;
+  document.getElementById('numpad-overlay').classList.add('hidden');
+}
+window.closeNumpad = closeNumpad;
+
+function numpadPress(n) {
+  if (_numpadVal === '0') _numpadVal = String(n);
+  else _numpadVal = _numpadVal + String(n);
+  if (_numpadVal.length > 5) _numpadVal = _numpadVal.slice(0, 5);
+  document.getElementById('numpad-display').textContent = _numpadVal;
+}
+window.numpadPress = numpadPress;
+
+function numpadDel() {
+  _numpadVal = _numpadVal.slice(0, -1) || '0';
+  document.getElementById('numpad-display').textContent = _numpadVal;
+}
+window.numpadDel = numpadDel;
+
+function numpadClear() {
+  _numpadVal = '0';
+  document.getElementById('numpad-display').textContent = _numpadVal;
+}
+window.numpadClear = numpadClear;
+
+function numpadLocation(loc) {
+  // Toggle
+  if (loc === '洗手台') {
+    _numpadLoc = _numpadLoc === 'sink' ? '' : 'sink';
+  } else {
+    _numpadLoc = _numpadLoc === 'cart' ? '' : 'cart';
+  }
+  updateNumpadLocationBtns();
+}
+window.numpadLocation = numpadLocation;
+
+function updateNumpadLocationBtns() {
+  const sinkBtn = document.getElementById('numpad-btn-sink');
+  const cartBtn = document.getElementById('numpad-btn-cart');
+  if (!sinkBtn || !cartBtn) return;
+  sinkBtn.style.background = _numpadLoc === 'sink' ? '#e6f0fb' : '#fff';
+  sinkBtn.style.borderColor = _numpadLoc === 'sink' ? '#1a4f7a' : '#cdd5de';
+  sinkBtn.style.color = _numpadLoc === 'sink' ? '#1a4f7a' : '#1e2d3d';
+  cartBtn.style.background = _numpadLoc === 'cart' ? '#e6f0fb' : '#fff';
+  cartBtn.style.borderColor = _numpadLoc === 'cart' ? '#1a4f7a' : '#cdd5de';
+  cartBtn.style.color = _numpadLoc === 'cart' ? '#1a4f7a' : '#1e2d3d';
+}
+
+function numpadConfirm() {
+  if (_numpadIdx < 0) return;
+  const i = _numpadIdx;
+  const val = parseInt(_numpadVal) || 0;
+
+  // Update actual qty
+  AS.items[i].actual = val;
+  const btn = document.getElementById('actual-' + i);
+  if (btn) btn.textContent = val;
+
+  // Update location note dropdown
+  const sel = document.getElementById('note-sel-' + i);
+  if (sel) {
+    if (_numpadLoc === 'sink') {
+      sel.value = '洗手台';
+      const txt = document.getElementById('note-' + i);
+      if (txt) txt.style.display = 'none';
+    } else if (_numpadLoc === 'cart') {
+      sel.value = '治療車';
+      const txt = document.getElementById('note-' + i);
+      if (txt) txt.style.display = 'none';
+    }
+    // else: don't change existing note selection
+  }
+
+  // Sync note
+  AS.items[i].note = buildNote(i);
+
+  // Check excess
+  checkExcess(i);
+
+  document.getElementById('numpad-overlay').classList.add('hidden');
+  _numpadIdx = -1;
+}
+window.numpadConfirm = numpadConfirm;
+
+// ══════════════════════════════════════
+// AUDIT-ONLY UNITS (只需查核的單位代碼)
+// ══════════════════════════════════════
+const AUDIT_UNIT_CODES = new Set(["CSR", "DENT", "DIA", "EMER", "HCSR", "HDENT", "HDIA", "HEME", "HLAB", "HMAC", "HMC", "HNE1", "HOP2", "HOR", "HPC", "HPMR", "HRAD", "HRT1", "HSNG", "HUR", "HZ03", "LAB", "MRR", "NEU", "NM", "OPD1", "OR", "PAT", "PC", "PMR", "RAD", "Y002", "Y008", "Y009", "Y010", "Y011", "Y03A", "Y03B", "Y05A", "Y05B", "Y06A", "Y06B", "Y07A", "Y07B", "Y0CR", "Y0ES", "Y0NH", "Y0PB", "YH5N", "YH5S", "YH6N", "YH6S", "YH7N", "YHBS", "YHCR", "YHES", "YI2A", "YI2B", "YI3N", "YLDH", "YRCC"]);
+
+// ══════════════════════════════════════
 // UNIT DROPDOWN HELPER (兩層：院區 → 單位)
 // ══════════════════════════════════════
 // allUnits: 全部單位資料 (需在呼叫前已載入)
@@ -240,6 +354,7 @@ function canDo(f) {
     query:['admin','rpharma','pharmacist','clerk'],
     audit:['admin','rpharma','pharmacist'],
     auditRecords:['admin','rpharma','pharmacist'],
+    backup:['admin','rpharma'],
     druglist:['admin','rpharma'], units:['admin','rpharma'],
     drugdb:['admin','rpharma'], users:['admin'],
   };
@@ -254,6 +369,7 @@ const NAV = [
   {id:'dashboard', label:'儀表板', icon:'📊'},
   {id:'audit', label:'藥品查核', icon:'✅'},
   {id:'auditRecords', label:'查核紀錄', icon:'📑'},
+  {id:'backup', label:'備份管理', icon:'💾'},
   {id:'compare', label:'請領比對', icon:'📋'},
   {id:'query', label:'查詢', icon:'🔍'},
   {section:'設定管理'},
@@ -288,7 +404,7 @@ function doNavigate(page) {
   document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
   const nav = document.getElementById('nav-' + page);
   if (nav) nav.classList.add('active');
-  ({dashboard:renderDashboard, audit:renderAudit, auditRecords:renderAuditRecords, compare:renderCompare, query:renderQuery,
+  ({dashboard:renderDashboard, audit:renderAudit, auditRecords:renderAuditRecords, backup:renderBackup, compare:renderCompare, query:renderQuery,
     druglist:renderDrugList, drugdb:renderDrugDB, units:renderUnits, users:renderUsers}[page] || (()=>{}))();
 }
 window.doNavigate = doNavigate;
@@ -385,6 +501,7 @@ function renderDashboardUI() {
     <div><h2 style="font-size:22px;font-weight:700;color:var(--primary-dark)">📊 儀表板</h2>
     <p style="font-size:13px;color:var(--text-light)">歡迎回來，${CU.name}</p></div>
     <button class="btn btn-ghost btn-sm" onclick="_dbData=null;renderDashboard()">🔄 重新整理</button>
+  ${getBackupReminderHTML()}
   </div>
 
   <!-- Month summary cards -->
@@ -466,8 +583,10 @@ async function renderAudit() {
   const units = await fsGetAll('units');
   units.sort((a,b) => a.code.localeCompare(b.code));
   hideLoading();
-  window._auditUnits = units;
-  const campuses=[...new Set(units.map(u=>u.campus).filter(Boolean))].sort();
+  // 只顯示需要查核的單位
+  const auditUnits = units.filter(u => AUDIT_UNIT_CODES.has(u.code));
+  window._auditUnits = auditUnits;
+  const campuses=[...new Set(auditUnits.map(u=>u.campus).filter(Boolean))].sort();
   renderMain(`
   <div class="page-header"><h2>✅ 藥品查核</h2><p>點選醫療單位後進行所有品項查核</p></div>
   <div class="card">
@@ -531,7 +650,12 @@ async function startAudit() {
         ${AS.items.map((item,i)=>`<tr>
           <td>${i+1}</td><td style="font-size:12px">${item.name}</td>
           <td style="text-align:center">${item.baseQty}</td>
-          <td><input type="number" min="0" value="${item.actual}" id="actual-${i}" onchange="upAudit(${i},'actual',this.value)" style="width:70px;border:1px solid #ccc;border-radius:4px;padding:4px 6px"/></td>
+          <td>
+            <button id="actual-${i}" onclick="openNumpad(${i})"
+              style="width:80px;height:34px;border:1px solid #aac8ef;border-radius:6px;background:#e6f0fb;font-size:16px;font-weight:700;color:#1a4f7a;cursor:pointer;text-align:center">
+              ${item.actual}
+            </button>
+          </td>
           <td style="text-align:center">
             <select onchange="upAudit(${i},'exp',this.value)" style="border:1px solid #ccc;border-radius:4px;padding:3px">
               <option value="ok">✓</option><option value="na">NA</option>
@@ -543,8 +667,15 @@ async function startAudit() {
             </select>
           </td>
           <td>
-            <input type="text" id="note-${i}" placeholder="備註" onchange="upAudit(${i},'note',this.value)"
-              style="width:130px;border:1px solid #ccc;border-radius:4px;padding:4px 6px;font-size:12px"/>
+            <select id="note-sel-${i}" onchange="handleNoteSelect(${i})"
+              style="width:90px;border:1px solid #ccc;border-radius:4px;padding:4px 5px;font-size:12px;margin-bottom:2px">
+              <option value="">-- 選擇 --</option>
+              <option value="洗手台">洗手台</option>
+              <option value="治療車">治療車</option>
+              <option value="其他說明">其他說明</option>
+            </select>
+            <input type="text" id="note-${i}" placeholder="說明內容" onchange="upAudit(${i},'note',buildNote(${i}))"
+              style="display:none;width:120px;border:1px solid #ccc;border-radius:4px;padding:4px 6px;font-size:12px;margin-top:2px"/>
             <div id="note-warn-${i}" style="font-size:10px;color:#c0392b;display:none">⚠️ 超量請填備註</div>
           </td>
         </tr>`).join('')}
@@ -564,11 +695,15 @@ async function startAudit() {
         <div>
           <div class="card-title" style="font-size:14px">單位負責人簽章</div>
           <div style="margin-bottom:8px">
-            <label style="font-size:12px;color:#5a7085;font-weight:600;display:block;margin-bottom:4px">負責人員工號（格式：Y+5碼，如 Y09999）</label>
-            <input type="text" id="unit-head-id" placeholder="Y00000" maxlength="6"
-              style="border:1px solid #cdd5de;border-radius:6px;padding:6px 10px;font-size:14px;width:140px;text-transform:uppercase;letter-spacing:2px"
-              oninput="validateUnitHeadId(this)" />
-            <span id="unit-head-id-status" style="font-size:11px;margin-left:8px;color:#5a7085"></span>
+            <label style="font-size:12px;color:#5a7085;font-weight:600;display:block;margin-bottom:6px">負責人員工號</label>
+            <div style="display:flex;align-items:stretch;width:fit-content">
+              <div style="background:#e8f0fb;border:1px solid #aac8ef;border-right:none;border-radius:6px 0 0 6px;padding:7px 12px;font-size:15px;font-weight:700;color:#1a4f7a">Y</div>
+              <input type="text" id="unit-head-id-digits" placeholder="00000" maxlength="5"
+                inputmode="numeric" pattern="[0-9]*"
+                style="border:1px solid #aac8ef;border-radius:0 6px 6px 0;padding:7px 10px;font-size:15px;width:100px;letter-spacing:3px;font-family:monospace;outline:none"
+                oninput="validateUnitHeadId(this)" />
+            </div>
+            <span id="unit-head-id-status" style="font-size:11px;margin-top:4px;display:block;color:#5a7085"></span>
           </div>
           <canvas id="sig-unit" width="300" height="100" style="border:1px solid #ccc;border-radius:4px;cursor:crosshair;display:block"></canvas>
           <div style="margin-top:6px;display:flex;gap:8px;align-items:center">
@@ -605,24 +740,49 @@ function checkExcess(i) {
   const noteEl = document.getElementById('note-'+i);
   const warnEl = document.getElementById('note-warn-'+i);
   if (!actualEl || !noteEl || !warnEl) return;
+  const selEl = document.getElementById('note-sel-'+i);
   if (isExcess) {
     actualEl.style.border = '2px solid #e67e22';
     actualEl.style.background = '#fdf0e0';
-    noteEl.style.border = '2px solid #c0392b';
-    noteEl.style.background = '#fde8e6';
-    noteEl.placeholder = '⚠️ 請填寫超量原因';
+    if(selEl) { selEl.style.border = '2px solid #c0392b'; selEl.style.background = '#fde8e6'; }
+    if(noteEl) { noteEl.style.border = '2px solid #c0392b'; noteEl.style.background = '#fde8e6'; noteEl.placeholder = '⚠️ 請填寫超量原因'; }
     warnEl.style.display = 'block';
   } else {
     actualEl.style.border = '1px solid #ccc';
     actualEl.style.background = '';
-    noteEl.style.border = '1px solid #ccc';
-    noteEl.style.background = '';
-    noteEl.placeholder = '備註';
+    if(selEl) { selEl.style.border = '1px solid #ccc'; selEl.style.background = ''; }
+    if(noteEl) { noteEl.style.border = '1px solid #ccc'; noteEl.style.background = ''; noteEl.placeholder = '說明內容'; }
     warnEl.style.display = 'none';
   }
 }
 window.upAudit = upAudit;
 window.checkExcess = checkExcess;
+
+function handleNoteSelect(i) {
+  const sel = document.getElementById('note-sel-'+i);
+  const txt = document.getElementById('note-'+i);
+  if (sel.value === '其他說明') {
+    txt.style.display = 'block';
+    txt.focus();
+  } else {
+    txt.style.display = 'none';
+    txt.value = '';
+  }
+  AS.items[i].note = buildNote(i);
+  checkExcess(i);
+}
+window.handleNoteSelect = handleNoteSelect;
+
+function buildNote(i) {
+  const sel = document.getElementById('note-sel-'+i);
+  const txt = document.getElementById('note-'+i);
+  if (!sel) return '';
+  if (sel.value === '其他說明') {
+    return txt?.value?.trim() ? '其他：' + txt.value.trim() : '其他說明';
+  }
+  return sel.value || '';
+}
+window.buildNote = buildNote;
 
 function initSig(name) {
   const c = document.getElementById('sig-'+name); if(!c) return;
@@ -642,38 +802,46 @@ function clearSig(name) {
 window.clearSig = clearSig;
 
 function validateUnitHeadId(input) {
-  const val = input.value.toUpperCase();
-  input.value = val;
+  // Only allow digits
+  input.value = input.value.replace(/[^0-9]/g, '');
+  const digits = input.value;
   const status = document.getElementById('unit-head-id-status');
-  const pattern = /^Y\d{5}$/;
-  if (!val) { status.textContent = ''; status.style.color = '#5a7085'; return; }
-  if (pattern.test(val)) {
-    status.textContent = '✅ 格式正確';
+  if (!digits) { status.textContent = ''; return; }
+  if (digits.length === 5) {
+    status.textContent = '✅ Y' + digits;
     status.style.color = '#27ae60';
   } else {
-    status.textContent = '⚠️ 格式應為 Y+5碼數字';
+    status.textContent = '請輸入 5 位數字（目前 ' + digits.length + ' 位）';
     status.style.color = '#e67e22';
   }
+}
+
+// Helper: get full unit head ID
+function getUnitHeadId() {
+  const digits = document.getElementById('unit-head-id-digits')?.value||'';
+  return digits ? 'Y' + digits : '';
 }
 window.validateUnitHeadId = validateUnitHeadId;
 
 async function saveAudit() {
   showLoading('儲存至雲端...');
   try {
-    const unitHeadId = document.getElementById('unit-head-id')?.value||'';
+    const unitHeadId = getUnitHeadId();
     if (!unitHeadId) {
       hideLoading(); alert('請填寫單位負責人員工號'); 
-      document.getElementById('unit-head-id').focus(); return;
+      document.getElementById('unit-head-id-digits').focus(); return;
     }
     if (!/^Y\d{5}$/.test(unitHeadId)) {
       hideLoading(); alert('單位負責人員工號格式錯誤，請填寫 Y+5碼數字（如 Y09999）');
-      document.getElementById('unit-head-id').focus(); return;
+      document.getElementById('unit-head-id-digits').focus(); return;
     }
     if (!SP['unit']) {
       hideLoading(); alert('請完成單位負責人手寫簽名');
       document.getElementById('sig-unit').scrollIntoView({behavior:'smooth'}); return;
     }
     // Check all excess items have notes
+    // Sync all notes before save
+    AS.items.forEach((item,i) => { item.note = buildNote(i); });
     const missingNote = AS.items.filter(item => item.actual > item.baseQty && !item.note.trim());
     if (missingNote.length > 0) {
       hideLoading();
@@ -701,7 +869,8 @@ window.saveAudit = saveAudit;
 
 function exportAuditPDF() {
   const win = window.open('','_blank');
-  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{font-family:'Microsoft JhengHei',sans-serif;font-size:12px;padding:20px}h2{text-align:center}table{width:100%;border-collapse:collapse;margin-top:10px}th,td{border:1px solid #333;padding:5px 8px;text-align:center}th{background:#1a4f7a;color:#fff}.hdr{display:flex;justify-content:space-between;margin-bottom:8px}.signs{display:flex;justify-content:space-around;margin-top:30px}.sign-box{border-top:1px solid #333;width:200px;text-align:center;padding-top:6px}@media print{button{display:none}}</style></head><body>
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{font-family:'Microsoft JhengHei',sans-serif;font-size:12px;padding:20px}h2{text-align:center}table{width:100%;border-collapse:collapse;margin-top:10px}th,td{border:1px solid #333;padding:5px 8px;text-align:center}th{background:#1a4f7a;color:#fff}.hdr{display:flex;justify-content:space-between;margin-bottom:8px}.signs{display:flex;justify-content:space-around;margin-top:30px}.sign-box{border-top:1px solid #333;width:200px;text-align:center;padding-top:6px}@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.6}}
+@media print{button{display:none}}</style></head><body>
   <h2>不計價藥品查核表</h2>
   <div class="hdr"><span>常備單位：${AS.unit.name}</span><span>查核日期：${AS.date}</span></div>
   <table><tr><th>項次</th><th style="text-align:left">藥品名稱及規格</th><th>基本常備量</th><th>實際庫存量</th><th>效期管理</th><th>定位管理</th><th>備註</th></tr>
@@ -715,7 +884,7 @@ function exportAuditPDF() {
     </div>
     <div class="sign-box">
       ${SP['unit']?`<img src="${SP['unit']}" width="180"><br>`:'<div style="height:60px"></div>'}
-      <div style="font-size:12px;color:#666;margin-top:4px">負責人員工號：${document.getElementById('unit-head-id')?.value||'__________'}</div>
+      <div style="font-size:12px;color:#666;margin-top:4px">負責人員工號：${getUnitHeadId()||'__________'}</div>
       單位負責人簽章
     </div>
   </div>
@@ -848,7 +1017,8 @@ function exportRecordPDF(id) {
     .signs{display:flex;justify-content:space-around;margin-top:30px;gap:20px}
     .sign-box{flex:1;border-top:1px solid #333;text-align:center;padding-top:8px;font-size:12px}
     .sign-box .label{font-size:11px;color:#666;margin-bottom:6px}
-    @media print{.no-print{display:none}body{padding:12px}}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.6}}
+@media print{.no-print{display:none}body{padding:12px}}
   </style></head><body>
   <h2>不計價藥品查核表</h2>
   <div class="meta">
@@ -916,6 +1086,205 @@ function exportAuditRecords() {
   XLSX.writeFile(wb, `查核紀錄_${new Date().toISOString().slice(0,10)}.xlsx`);
 }
 window.exportAuditRecords = exportAuditRecords;
+
+// ══════════════════════════════════════
+// BACKUP
+// ══════════════════════════════════════
+function getCurrentQuarter() {
+  const now = new Date();
+  const q = Math.ceil((now.getMonth()+1)/3);
+  return { year: now.getFullYear(), q, key: `${now.getFullYear()}-Q${q}` };
+}
+
+function getLastBackupInfo() {
+  try { return JSON.parse(localStorage.getItem('hpms_last_backup')||'null'); } catch{ return null; }
+}
+function setLastBackup() {
+  const {year,q,key} = getCurrentQuarter();
+  localStorage.setItem('hpms_last_backup', JSON.stringify({key, date: new Date().toISOString().slice(0,10), year, q}));
+}
+
+function getBackupReminderHTML() {
+  if(!['admin','rpharma'].includes(CU?.role)) return '';
+  const last = getLastBackupInfo();
+  const cur = getCurrentQuarter();
+  const needBackup = !last || last.key !== cur.key;
+  if(!needBackup) return `<span style="font-size:12px;color:var(--success)">✅ 本季已備份（${last.date}）</span>`;
+  return `<button class="btn btn-accent btn-sm" onclick="navigate('backup')" style="animation:pulse 1.5s infinite">
+    ⚠️ 本季尚未備份，點此前往備份
+  </button>`;
+}
+
+async function renderBackup() {
+  showLoading('載入備份資訊...');
+  const audits = await fsGetAll('audits');
+  hideLoading();
+
+  const cur = getCurrentQuarter();
+  const last = getLastBackupInfo();
+  const needBackup = !last || last.key !== cur.key;
+
+  // Group audits by quarter
+  const byQ = {};
+  audits.forEach(a => {
+    const d = a.auditDate||'';
+    if(!d) return;
+    const [y,m] = d.split('-');
+    const q = Math.ceil(parseInt(m)/3);
+    const key = `${y}-Q${q}`;
+    if(!byQ[key]) byQ[key] = [];
+    byQ[key].push(a);
+  });
+  const quarters = Object.keys(byQ).sort().reverse();
+
+  renderMain(`
+  <div class="page-header"><h2>💾 備份管理</h2><p>以季為單位匯出查核紀錄，建議每季備份一次</p></div>
+
+  ${needBackup ? `
+  <div class="alert alert-warn" style="display:flex;align-items:center;gap:12px">
+    <span style="font-size:24px">⚠️</span>
+    <div>
+      <b>${cur.year} 年第 ${cur.q} 季尚未備份！</b><br>
+      <span style="font-size:12px">建議每季末匯出一份 PDF 或 Excel 存至 OneDrive 留存</span>
+    </div>
+  </div>` : `
+  <div class="alert alert-info" style="display:flex;align-items:center;gap:12px">
+    <span style="font-size:20px">✅</span>
+    <div><b>本季已完成備份</b>（${last?.date}）</div>
+  </div>`}
+
+  <div class="card">
+    <div class="card-title">📋 各季備份狀況</div>
+    <div class="tbl-wrap"><table>
+      <tr><th>季度</th><th>查核筆數</th><th>涵蓋單位數</th><th>匯出</th></tr>
+      ${quarters.length===0?'<tr><td colspan="4" style="text-align:center;color:#999;padding:20px">尚無查核記錄</td></tr>'
+        :quarters.map(qk => {
+          const recs = byQ[qk];
+          const units = new Set(recs.map(r=>r.unitCode)).size;
+          const [yr,qi] = qk.split('-Q');
+          const isCur = qk === cur.key;
+          return `<tr style="${isCur?'background:#f0f6ff':''}">
+            <td><b>${yr} 年第 ${qi} 季</b>${isCur?'<span class="badge-blue" style="margin-left:6px">本季</span>':''}</td>
+            <td style="text-align:center">${recs.length} 筆</td>
+            <td style="text-align:center">${units} 個單位</td>
+            <td>
+              <button class="btn btn-primary btn-sm" onclick="exportQuarterPDF('${qk}')">📄 PDF</button>
+              <button class="btn btn-success btn-sm" style="margin-left:4px" onclick="exportQuarterExcel('${qk}')">📥 Excel</button>
+            </td>
+          </tr>`;
+        }).join('')}
+    </table></div>
+  </div>
+
+  <div class="card" style="background:#f8f9fa">
+    <div class="card-title">📌 備份建議</div>
+    <div style="font-size:13px;color:var(--text-light);line-height:2">
+      ✅ 每季末（3月、6月、9月、12月）匯出一次<br>
+      ✅ 匯出的 PDF / Excel 存至 OneDrive 或 SharePoint<br>
+      ✅ Firebase 雲端資料會持續保留，匯出只是額外備份<br>
+      ✅ 預估 6 年資料量約 33MB，Firebase 免費空間完全足夠
+    </div>
+  </div>`);
+
+  window._backupAudits = audits;
+  window._backupByQ = byQ;
+}
+window.renderBackup = renderBackup;
+
+async function exportQuarterPDF(qk) {
+  const recs = (window._backupByQ||{})[qk]||[];
+  if(!recs.length){ alert('此季無查核記錄'); return; }
+  const [yr,qi] = qk.split('-Q');
+  const title = `${yr} 年第 ${qi} 季 不計價藥品查核紀錄`;
+
+  // Sort by date then unit
+  recs.sort((a,b)=>(a.auditDate||'').localeCompare(b.auditDate||'')||(a.unitName||'').localeCompare(b.unitName||''));
+
+  const win = window.open('','_blank');
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
+  <style>
+    body{font-family:'Microsoft JhengHei',sans-serif;font-size:11px;padding:20px;color:#1e2d3d}
+    h2{text-align:center;font-size:15px;margin-bottom:4px}
+    .sub{text-align:center;font-size:11px;color:#666;margin-bottom:16px}
+    .summary{display:flex;gap:20px;justify-content:center;margin-bottom:16px;font-size:12px}
+    .summary span{background:#f0f4f8;padding:4px 12px;border-radius:4px}
+    .record{margin-bottom:24px;page-break-inside:avoid}
+    .rec-header{background:#1a4f7a;color:#fff;padding:6px 10px;border-radius:4px 4px 0 0;display:flex;justify-content:space-between;font-size:11px}
+    .rec-meta{background:#f0f4f8;padding:5px 10px;font-size:10px;color:#555;display:flex;gap:16px;border:1px solid #ddd;border-top:none}
+    table{width:100%;border-collapse:collapse;border:1px solid #ddd;border-top:none}
+    th{background:#2d7ab5;color:#fff;padding:4px 6px;font-size:10px;text-align:center}
+    td{padding:3px 6px;border-bottom:1px solid #eee;font-size:10px;text-align:center}
+    td:nth-child(2){text-align:left}
+    .excess{background:#fdf0e0}
+    .sign-area{display:flex;justify-content:flex-end;gap:20px;margin-top:6px;padding:4px 10px;border:1px solid #ddd;border-top:none}
+    .sign-box{text-align:center;font-size:10px;color:#666}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.6}}
+@media print{.no-print{display:none}body{padding:10px}}
+  </style></head><body>
+  <h2>${title}</h2>
+  <div class="sub">匯出時間：${new Date().toLocaleString('zh-TW')}</div>
+  <div class="summary">
+    <span>查核筆數：${recs.length} 筆</span>
+    <span>涵蓋單位：${new Set(recs.map(r=>r.unitCode)).size} 個</span>
+  </div>
+  ${recs.map(r=>`
+  <div class="record">
+    <div class="rec-header">
+      <span>${r.unitName||r.unitCode}</span>
+      <span>${r.auditDate||''}</span>
+    </div>
+    <div class="rec-meta">
+      <span>查核藥師：${r.pharmacistName||r.pharmacist||''} (${r.pharmacistId||''})</span>
+      <span>負責人員工號：${r.unitHeadId||'—'}</span>
+      <span>品項數：${(r.items||[]).length}</span>
+    </div>
+    <table>
+      <tr><th>項次</th><th style="text-align:left">藥品名稱</th><th>常備量</th><th>實際庫存</th><th>效期</th><th>定位</th><th style="text-align:left">備註</th></tr>
+      ${(r.items||[]).map((item,i)=>`<tr class="${item.actual>item.baseQty?'excess':''}">
+        <td>${i+1}</td><td style="text-align:left">${item.name||item.code}</td>
+        <td>${item.baseQty}</td>
+        <td style="font-weight:${item.actual>item.baseQty?700:400};color:${item.actual>item.baseQty?'#e67e22':''}">${item.actual}</td>
+        <td>${item.expOk?'✓':'NA'}</td><td>${item.locOk?'✓':'NA'}</td>
+        <td>${item.note||''}</td>
+      </tr>`).join('')}
+    </table>
+    <div class="sign-area">
+      <div class="sign-box">
+        藥師：${r.pharmacistName||''} (${r.pharmacistId||''})<br>
+        <div style="border-top:1px solid #999;margin-top:20px;width:120px"></div>
+      </div>
+      <div class="sign-box">
+        ${r.unitSig?`<img src="${r.unitSig}" style="max-height:40px;display:block;margin:0 auto"/>`:'<div style="height:40px"></div>'}
+        負責人 (${r.unitHeadId||''})<br>
+        <div style="border-top:1px solid #999;margin-top:2px;width:120px"></div>
+      </div>
+    </div>
+  </div>`).join('')}
+  <button class="no-print" onclick="window.print()" style="position:fixed;bottom:20px;right:20px;padding:10px 24px;background:#1a4f7a;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:14px;box-shadow:0 2px 8px rgba(0,0,0,0.3)">🖨️ 列印 / 儲存 PDF</button>
+  </body></html>`);
+  win.document.close();
+  setLastBackup();
+  // refresh reminder
+  renderBackup();
+}
+window.exportQuarterPDF = exportQuarterPDF;
+
+function exportQuarterExcel(qk) {
+  const recs = (window._backupByQ||{})[qk]||[];
+  if(!recs.length){ alert('此季無查核記錄'); return; }
+  const [yr,qi] = qk.split('-Q');
+  const rows = [['查核日期','醫療單位','查核藥師','藥師員工號','負責人員工號','品項數','狀態']];
+  recs.sort((a,b)=>(a.auditDate||'').localeCompare(b.auditDate||'')).forEach(r=>{
+    rows.push([r.auditDate||'', r.unitName||r.unitCode||'', r.pharmacistName||r.pharmacist||'',
+      r.pharmacistId||'', r.unitHeadId||'', (r.items||[]).length, r.complete?'完成':'進行中']);
+  });
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), `${yr}Q${qi}查核紀錄`);
+  XLSX.writeFile(wb, `查核備份_${yr}Q${qi}_${new Date().toISOString().slice(0,10)}.xlsx`);
+  setLastBackup();
+  renderBackup();
+}
+window.exportQuarterExcel = exportQuarterExcel;
 
 // ══════════════════════════════════════
 // COMPARE
@@ -1644,6 +2013,56 @@ window.deleteUser = deleteUser;
   </div>
 </div>
 
+<!-- NUMPAD MODAL -->
+<div id="numpad-overlay" class="modal-overlay hidden" onclick="closeNumpad(event)">
+  <div style="background:#fff;border-radius:16px;padding:20px;width:320px;box-shadow:0 8px 32px rgba(0,0,0,0.2)" onclick="event.stopPropagation()">
+    <div style="font-size:13px;color:#5a7085;margin-bottom:8px" id="numpad-drug-name"></div>
+    <!-- Display -->
+    <div style="display:flex;align-items:center;background:#f4f8fc;border:2px solid #1a4f7a;border-radius:8px;padding:8px 12px;margin-bottom:12px;min-height:52px">
+      <span style="font-size:28px;font-weight:800;color:#1a4f7a;flex:1" id="numpad-display">0</span>
+      <button onclick="numpadDel()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#5a7085">⌫</button>
+    </div>
+    <!-- Location shortcuts -->
+    <div style="display:flex;gap:8px;margin-bottom:12px">
+      <button onclick="numpadLocation('洗手台')"
+        id="numpad-btn-sink"
+        style="flex:1;padding:10px;border:2px solid #cdd5de;border-radius:8px;background:#fff;font-size:16px;font-weight:600;color:#1e2d3d;cursor:pointer">
+        🚿 洗手台
+      </button>
+      <button onclick="numpadLocation('治療車')"
+        id="numpad-btn-cart"
+        style="flex:1;padding:10px;border:2px solid #cdd5de;border-radius:8px;background:#fff;font-size:16px;font-weight:600;color:#1e2d3d;cursor:pointer">
+        🛒 治療車
+      </button>
+    </div>
+    <!-- Number pad -->
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px">
+      ${[7,8,9,4,5,6,1,2,3].map(n=>`
+      <button onclick="numpadPress(${n})"
+        style="padding:14px;border:1px solid #cdd5de;border-radius:8px;background:#f4f8fc;font-size:22px;font-weight:700;color:#1e2d3d;cursor:pointer">
+        ${n}
+      </button>`).join('')}
+      <button onclick="numpadPress('00')"
+        style="padding:14px;border:1px solid #cdd5de;border-radius:8px;background:#f4f8fc;font-size:18px;font-weight:700;color:#1e2d3d;cursor:pointer">
+        00
+      </button>
+      <button onclick="numpadPress(0)"
+        style="padding:14px;border:1px solid #cdd5de;border-radius:8px;background:#f4f8fc;font-size:22px;font-weight:700;color:#1e2d3d;cursor:pointer">
+        0
+      </button>
+      <button onclick="numpadClear()"
+        style="padding:14px;border:1px solid #cdd5de;border-radius:8px;background:#fde8e6;font-size:16px;font-weight:700;color:#c0392b;cursor:pointer">
+        清除
+      </button>
+    </div>
+    <!-- Confirm -->
+    <button onclick="numpadConfirm()"
+      style="width:100%;padding:13px;background:#1a4f7a;color:#fff;border:none;border-radius:8px;font-size:18px;font-weight:700;cursor:pointer">
+      ✅ 確認
+    </button>
+  </div>
+</div>
+
 <div id="modal-overlay" class="modal-overlay hidden" onclick="closeModal(event)">
   <div class="modal" onclick="event.stopPropagation()">
     <div id="modal-content"></div>
@@ -1725,6 +2144,7 @@ tr:hover td{background:#f5f8fc;}
 .alert{padding:10px 14px;border-radius:6px;font-size:13px;margin-bottom:14px;}
 .alert-info{background:#e6f0fb;color:var(--primary);border:1px solid #aac8ef;}
 .alert-warn{background:#fdf0e0;color:var(--warning);border:1px solid #f5c875;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.6}}
 @media print{#login-screen,#topbar,#sidebar,.no-print{display:none!important;}#main{padding:0;max-width:100%;}body{background:#fff;}.card{box-shadow:none;border:1px solid #ccc;}}
 </style>
 </body>
