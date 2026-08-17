@@ -187,7 +187,7 @@ window.numpadConfirm = numpadConfirm;
 // ══════════════════════════════════════
 // AUDIT-ONLY UNITS (只需查核的單位代碼)
 // ══════════════════════════════════════
-const AUDIT_UNIT_CODES = new Set(["CSR", "DENT", "DIA", "EMER", "HCSR", "HDENT", "HDIA", "HEME", "HLAB", "HMAC", "HMC", "HNE1", "HOP2", "HOR", "HPC", "HPMR", "HRAD", "HRT1", "HSNG", "HUR", "HZ03", "LAB", "MRR", "NEU", "NM", "OPD1", "OR", "PAT", "PC", "PMR", "RAD", "Y002", "Y008", "Y009", "Y010", "Y011", "Y03A", "Y03B", "Y05A", "Y05B", "Y06A", "Y06B", "Y07A", "Y07B", "Y0CR", "Y0ES", "Y0NH", "Y0PB", "YH5N", "YH5S", "YH6N", "YH6S", "YH7N", "YHBS", "YHCR", "YHES", "YI2A", "YI2B", "YI3N", "YLDH", "YRCC"]);
+const AUDIT_UNIT_CODES = new Set(["CSR", "DENT", "DIA", "EMER", "HCSR", "HDEN", "HDIA", "HEME", "HLAB", "HMAC", "HMC", "HMED", "HNE1", "HOR", "HPC", "HPMR", "HRAD", "HRT1", "HSNG", "HUR", "HZ03", "LAB", "MED1", "MRR", "NEU", "NM", "OR", "PAT", "PC", "PMR", "RAD", "Y002", "Y008", "Y009", "Y010", "Y011", "Y03A", "Y03B", "Y05A", "Y05B", "Y06A", "Y06B", "Y07A", "Y07B", "Y0CR", "Y0ES", "Y0NH", "Y0PB", "YH5N", "YH5S", "YH6N", "YH6S", "YH7N", "YHBS", "YHCR", "YHES", "YI2A", "YI2B", "YI3N", "YLDH", "YRCC"]);
 
 // ══════════════════════════════════════
 // UNIT DROPDOWN HELPER (兩層：院區 → 單位)
@@ -466,7 +466,8 @@ function renderDashboardUI() {
   const isCurrentMonth = _dbMonth === now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
 
   // Units with drug list
-  const activeUnits = units.filter(u => cm[u.code] > 0);
+  // 儀表板只顯示需查核的單位
+  const activeUnits = units.filter(u => AUDIT_UNIT_CODES.has(u.code));
   const totalUnits = activeUnits.length;
 
   // Audits in selected month
