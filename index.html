@@ -93,10 +93,11 @@ function openNumpad(i) {
   _numpadVal = String(AS.items[i].actual);
   _numpadLoc = '';
 
-  // Sync location from current note selection
-  const sel = document.getElementById('note-sel-' + i);
-  if (sel?.value === '洗手台') { _numpadLoc = 'sink'; }
-  else if (sel?.value === '治療車') { _numpadLoc = 'cart'; }
+  // Sync location from current note text
+  const txt = document.getElementById('note-' + i);
+  const noteVal = txt?.value || AS.items[i].note || '';
+  if (noteVal === '洗手台') _numpadLoc = 'sink';
+  else if (noteVal === '治療車') _numpadLoc = 'cart';
 
   document.getElementById('numpad-display').textContent = _numpadVal;
   document.getElementById('numpad-drug-name').textContent = AS.items[i].name || '';
@@ -166,15 +167,15 @@ function numpadConfirm() {
 
   // Update note text based on location selection
   const txt = document.getElementById('note-' + i);
-  if (txt && _numpadLoc) {
-    const locLabel = _numpadLoc === 'sink' ? '洗手台' : '治療車';
-    if (!txt.value || txt.value === '洗手台' || txt.value === '治療車') {
-      txt.value = locLabel;
+  if (txt) {
+    if (_numpadLoc === 'sink') {
+      txt.value = '洗手台';
+    } else if (_numpadLoc === 'cart') {
+      txt.value = '治療車';
     }
+    // Sync to AS.items
+    AS.items[i].note = txt.value.trim();
   }
-
-  // Sync note
-  AS.items[i].note = buildNote(i);
 
   // Check excess
   checkExcess(i);
