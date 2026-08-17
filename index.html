@@ -176,11 +176,13 @@ function numpadConfirm() {
     }
   }
 
-  // Update note text
+  // Note input: do NOT auto-fill location (already shown on button)
+  // Only sync existing note value
   const txt = document.getElementById('note-' + i);
   if (txt) {
-    if (locLabel) {
-      txt.value = locLabel;
+    // Clear location text from note if it was previously set by location button
+    if (txt.value === '洗手台' || txt.value === '治療車') {
+      txt.value = '';
     }
     AS.items[i].note = txt.value.trim();
   }
@@ -850,7 +852,7 @@ function exportAuditPDF() {
   <h2>不計價藥品查核表</h2>
   <div class="hdr"><span>常備單位：${AS.unit.name}</span><span>查核日期：${AS.date}</span></div>
   <table><tr><th>項次</th><th style="text-align:left">藥品名稱及規格</th><th>基本常備量</th><th>實際庫存量</th><th>效期管理</th><th>定位管理</th><th>備註</th></tr>
-  ${AS.items.map((item,i)=>`<tr><td>${i+1}</td><td style="text-align:left;font-size:11px">${item.name}</td><td>${item.baseQty}</td><td>${item.actual}</td><td>${item.expOk?'✓':'NA'}</td><td>${item.locOk?'✓':'NA'}</td><td>${item.note||''}</td></tr>`).join('')}
+  ${AS.items.map((item,i)=>`<tr><td>${i+1}</td><td style="text-align:left;font-size:11px">${item.name}</td><td>${item.baseQty}</td><td>${item.actual}</td><td>${item.expOk?'✓':'NA'}</td><td>${item.locOk?'✓':'NA'}</td></tr>`).join('')}
   </table>
   <div class="signs">
     <div class="sign-box">
@@ -1006,7 +1008,7 @@ function exportRecordPDF(id) {
     <span>負責人員工號：<b>${r.unitHeadId||''}</b></span>
   </div>
   <table>
-    <tr><th>項次</th><th style="text-align:left">藥品名稱及規格</th><th>基本常備量</th><th>實際庫存量</th><th>效期管理</th><th>定位管理</th><th style="text-align:left">備註</th></tr>
+    <tr><th>項次</th><th style="text-align:left">藥品名稱及規格</th><th>基本常備量</th><th>實際庫存量</th><th>效期管理</th><th>定位管理</th></tr>
     ${(r.items||[]).map((item,i)=>`<tr class="${item.actual>item.baseQty?'excess':''}">
       <td>${i+1}</td>
       <td>${item.name||item.code}</td>
@@ -1215,7 +1217,7 @@ async function exportQuarterPDF(qk) {
       <span>品項數：${(r.items||[]).length}</span>
     </div>
     <table>
-      <tr><th>項次</th><th style="text-align:left">藥品名稱</th><th>常備量</th><th>實際庫存</th><th>效期</th><th>定位</th><th style="text-align:left">備註</th></tr>
+      <tr><th>項次</th><th style="text-align:left">藥品名稱</th><th>常備量</th><th>實際庫存</th><th>效期</th><th>定位</th></tr>
       ${(r.items||[]).map((item,i)=>`<tr class="${item.actual>item.baseQty?'excess':''}">
         <td>${i+1}</td><td style="text-align:left">${item.name||item.code}</td>
         <td>${item.baseQty}</td>
